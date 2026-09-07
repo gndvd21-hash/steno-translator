@@ -3,1532 +3,996 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Gregg Shorthand Translator</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
 <style>
-* {
-    box-sizing: border-box;
-}
+    * {
+        box-sizing: border-box;
+    }
 
-body {
-    margin: 0;
-    padding: 16px;
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    color: #222;
-}
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        color: #222;
+    }
 
-h1 {
-    margin: 0 0 18px;
-}
+    .container {
+        max-width: 1200px;
+        margin: auto;
+        padding: 25px;
+    }
 
-textarea {
-    width: 100%;
-    height: 120px;
-    padding: 14px;
-    font-size: 18px;
-    border: 1px solid #999;
-    border-radius: 8px;
-    resize: vertical;
-}
+    h1 {
+        margin-top: 0;
+        margin-bottom: 5px;
+    }
 
-.controls {
-    margin: 14px 0;
-}
+    .subtitle {
+        color: #666;
+        margin-bottom: 20px;
+    }
 
-button {
-    padding: 10px 18px;
-    margin-right: 8px;
-    border: 1px solid #aaa;
-    border-radius: 7px;
-    background: white;
-    font-size: 15px;
-    cursor: pointer;
-}
+    textarea {
+        width: 100%;
+        min-height: 130px;
+        resize: vertical;
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        font-size: 18px;
+        outline: none;
+    }
 
-button.active {
-    background: #222;
-    color: white;
-}
+    textarea:focus {
+        border-color: #777;
+    }
 
-#status {
-    color: #777;
-    margin: 8px 0 15px;
-    font-size: 13px;
-}
+    .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 15px 0 20px;
+    }
 
-#results {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
+    select,
+    button {
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid #bbb;
+        background: white;
+        font-size: 15px;
+        cursor: pointer;
+    }
 
-.card {
-    width: 385px;
-    max-width: 100%;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 8px;
-}
+    button:hover {
+        background: #eee;
+    }
 
-.label {
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 5px;
-    font-size: 16px;
-}
+    #status {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 15px;
+    }
 
-.source {
-    text-align: center;
-    color: #888;
-    font-size: 11px;
-    margin-top: 4px;
-}
+    .results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
 
-.outline {
-    width: 365px;
-    max-width: 100%;
-    height: 100px;
-    margin: auto;
-    position: relative;
-    overflow: hidden;
-    background: white;
-}
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        overflow: hidden;
+    }
 
-.outline img {
-    position: absolute;
-    max-width: none;
-}
+    .word {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        text-transform: lowercase;
+    }
 
-.missing {
-    width: 100%;
-    height: 100px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #aaa;
-    font-size: 13px;
-    text-align: center;
-    padding: 10px;
-}
+    .source {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 10px;
+    }
 
-.loading {
-    width: 100%;
-    height: 100px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #888;
-    font-size: 13px;
-}
+    .outline {
+        width: 100%;
+        height: 150px;
+        overflow: hidden;
+        position: relative;
+        background: #fff;
+        border-radius: 8px;
+    }
+
+    .outline img {
+        position: absolute;
+        max-width: none;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    .missing {
+        color: #999;
+        font-style: italic;
+        padding: 30px 5px;
+        text-align: center;
+    }
+
+    .phrase-card {
+        grid-column: 1 / -1;
+        background: #fffdf3;
+        border: 1px solid #eadf9d;
+    }
+
+    .phrase-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+
+    .phrase-note {
+        font-size: 13px;
+        color: #777;
+        margin-bottom: 12px;
+    }
+
+    .phrase-words {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .mini-word {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 8px;
+        width: 180px;
+    }
+
+    .mini-word-title {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .mini-outline {
+        height: 90px;
+        overflow: hidden;
+        position: relative;
+        background: white;
+    }
+
+    .mini-outline img {
+        position: absolute;
+        max-width: none;
+    }
 </style>
 </head>
 
 <body>
 
-<h1>Gregg Shorthand Translator</h1>
+<div class="container">
 
-<textarea
-    id="input"
-    placeholder="Type English text here..."
-></textarea>
+    <h1>Gregg Shorthand Translator</h1>
 
-<div class="controls">
+    <div class="subtitle">
+        English → Gregg Shorthand
+    </div>
 
-    <button id="anniversaryBtn" class="active">
-        Anniversary
-    </button>
+    <textarea id="inputText"
+        placeholder="Type something...&#10;&#10;Example: dear sir i am ready to do things"></textarea>
 
-    <button id="simplifiedBtn">
-        Simplified
-    </button>
+    <div class="controls">
+
+        <label>
+            Series:
+            <select id="series">
+                <option value="Anniversary">Anniversary</option>
+                <option value="Simplified">Simplified</option>
+            </select>
+        </label>
+
+        <button id="translateBtn">Translate</button>
+
+        <button id="clearBtn">Clear</button>
+
+    </div>
+
+    <div id="status">
+        Loading Gregg dictionary...
+    </div>
+
+    <div id="results" class="results"></div>
 
 </div>
-
-<div id="status">
-    Loading...
-</div>
-
-<div id="results"></div>
-
 
 <script>
 
-/* =========================================================
-   PDF.JS
-========================================================= */
-
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-
-/* =========================================================
+/* ============================================================
    GREGGDICT
-   THIS REMAINS OUR PRIMARY WORD SOURCE
-========================================================= */
+   ============================================================ */
 
-const GREGGDICT =
+const BASE =
     "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
 
+const DISPLAY_SIZE = {
+    x: 365,
+    y: 100,
+    offset: 5
+};
 
-/* =========================================================
-   ANNIVERSARY PHRASE BOOK
-========================================================= */
-
-const PHRASE_BOOK =
-    "https://greggshorthand.github.io/phrasebook.pdf";
-
-
-/* =========================================================
-   ORIGINAL GREGGDICT DISPLAY VALUES
-========================================================= */
+const DISPLAY_SIZE_LARGE = {
+    x: 450,
+    y: 180,
+    offset: 10
+};
 
 const IMG_WIDTH = 1281;
-const DISPLAY_WIDTH = 365;
-const DISPLAY_HEIGHT = 100;
-const OFFSET = 5;
 
 
-/* =========================================================
-   STATE
-========================================================= */
+/* ============================================================
+   DICTIONARIES
+   ============================================================ */
 
-let currentSeries = "Anniversary";
-
-let anniversaryDictionary = null;
-let simplifiedDictionary = null;
-
-let phraseBook = null;
-
-let phrasePages = [];
-
-let phraseIndex = new Map();
-
-let phraseBookReady = false;
+let dictionaries = {
+    Anniversary: [],
+    Simplified: []
+};
 
 
-/* =========================================================
+/* ============================================================
+   COMMON ANNIVERSARY PHRASES
+   These are phrase recognizers only.
+   The actual outlines still come from greggdict.
+   ============================================================ */
+
+const COMMON_PHRASES = [
+
+    "dear sir",
+    "dear madam",
+    "i am",
+    "i am not",
+    "i can",
+    "i cannot",
+    "i do",
+    "i do not",
+    "i will",
+    "i will not",
+    "i shall",
+    "i shall not",
+    "i have",
+    "i have not",
+
+    "you are",
+    "you are not",
+    "you can",
+    "you cannot",
+    "you will",
+    "you will not",
+    "you have",
+    "you have not",
+
+    "we are",
+    "we are not",
+    "we will",
+    "we will not",
+    "we shall",
+    "we shall not",
+    "we can",
+    "we cannot",
+    "we have",
+    "we have not",
+
+    "he was",
+    "he will",
+    "he can",
+
+    "she was",
+    "she will",
+    "she can",
+
+    "to the",
+    "of the",
+    "and the",
+    "that the",
+    "at the",
+    "by the",
+    "in the",
+    "with the",
+
+    "to you",
+    "of you",
+    "to me",
+    "to my",
+
+    "it is",
+    "it was",
+
+    "at once",
+    "in my opinion",
+    "in the first place",
+    "at the same time",
+    "in other words",
+    "once in a while",
+    "as soon as possible",
+    "as a matter of fact"
+];
+
+
+/* ============================================================
    NORMALIZATION
-========================================================= */
+   ============================================================ */
 
-function normalize(text) {
+function normalizeWord(word) {
 
-    return String(text)
+    return word
         .toLowerCase()
-        .replace(/[“”‘’]/g, "'")
-        .replace(/[.,!?;:()[\]{}"“”]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+        .replace(/[“”‘’]/g, "")
+        .replace(/^[^a-z]+|[^a-z]+$/gi, "");
+
 }
 
 
-function cleanWord(word) {
+function tokenize(text) {
 
-    return String(word)
-        .toLowerCase()
-        .replace(/^[^a-z]+/i, "")
-        .replace(/[^a-z]+$/i, "");
+    return text
+        .split(/\s+/)
+        .map(normalizeWord)
+        .filter(Boolean);
+
 }
 
 
-/* =========================================================
-   LOAD GREGGDICT
-========================================================= */
+/* ============================================================
+   LOAD DICTIONARY
+   ============================================================ */
 
 async function loadDictionary(series) {
 
-    const url =
-        GREGGDICT +
-        series +
-        "/reference.json?cb=" +
-        Date.now();
+    if (dictionaries[series].length > 0) {
+        return dictionaries[series];
+    }
 
-    const response =
-        await fetch(url);
+    const url =
+        BASE + series + "/reference.json?cb=" + Date.now();
+
+    const response = await fetch(url);
 
     if (!response.ok) {
         throw new Error(
-            "Could not load " + series
+            "Could not load " + series + " dictionary."
         );
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    dictionaries[series] = data;
+
+    return data;
 }
 
 
-/* =========================================================
-   GREGGDICT WORD LOOKUP
-========================================================= */
+/* ============================================================
+   FIND WORD
+   ============================================================ */
 
-function findDictionaryWord(word) {
+function findWord(dictionary, word) {
 
-    const dictionary =
-        currentSeries === "Anniversary"
-            ? anniversaryDictionary
-            : simplifiedDictionary;
-
-    if (!dictionary) {
-        return null;
-    }
-
-    const target =
-        cleanWord(word);
+    const target = word.toLowerCase();
 
     for (const page of dictionary) {
 
-        if (!page.words) {
-            continue;
-        }
+        if (!page.words) continue;
 
-        for (const entry of page.words) {
+        for (const item of page.words) {
+
+            if (!item.t) continue;
 
             if (
-                cleanWord(entry.t) ===
-                target
+                item.t.toLowerCase() === target
             ) {
 
                 return {
                     page: page.page,
-                    x: entry.x,
-                    y: entry.y,
-                    term: entry.t
+                    x: Number(item.x),
+                    y: Number(item.y),
+                    t: item.t
                 };
 
             }
+
         }
+
     }
 
     return null;
 }
 
 
-/* =========================================================
-   LOAD ANNIVERSARY PHRASE BOOK
-========================================================= */
-
-async function loadPhraseBook() {
-
-    try {
-
-        phraseBook =
-            await pdfjsLib.getDocument({
-                url: PHRASE_BOOK
-            }).promise;
-
-        console.log(
-            "Phrase Book pages:",
-            phraseBook.numPages
-        );
-
-        phraseBookReady = true;
-
-        await buildPhraseIndex();
-
-    } catch (error) {
-
-        console.error(
-            "Could not load Anniversary Phrase Book:",
-            error
-        );
-
-        phraseBookReady = false;
-    }
-}
-
-
-/* =========================================================
-   EXTRACT ONE PDF PAGE
-========================================================= */
-
-async function extractPhrasePage(pageNumber) {
-
-    if (phrasePages[pageNumber]) {
-        return phrasePages[pageNumber];
-    }
-
-    const page =
-        await phraseBook.getPage(pageNumber);
-
-    const content =
-        await page.getTextContent();
-
-    const items =
-        content.items
-            .map(item => {
-
-                const text =
-                    (item.str || "").trim();
-
-                return {
-                    text: text,
-                    normalized: normalize(text),
-                    x: item.transform[4],
-                    y: item.transform[5],
-                    width: item.width || 0,
-                    height: item.height || 0
-                };
-
-            })
-            .filter(item => item.normalized);
-
-    const result = {
-        pageNumber: pageNumber,
-        items: items
-    };
-
-    phrasePages[pageNumber] = result;
-
-    return result;
-}
-
-
-/* =========================================================
-   FIND PHRASE ON ONE PAGE
-========================================================= */
-
-function findPhraseOnPage(
-    pageData,
-    target
-) {
-
-    const targetWords =
-        normalize(target)
-            .split(" ")
-            .filter(Boolean);
-
-    const items =
-        pageData.items;
-
-    /*
-       First try each PDF text item by itself.
-       This catches entries where the entire phrase
-       is stored as one text item.
-    */
-
-    for (let i = 0; i < items.length; i++) {
-
-        if (
-            items[i].normalized ===
-            target
-        ) {
-
-            return {
-                start: i,
-                end: i,
-                items: [items[i]]
-            };
-
-        }
-    }
-
-
-    /*
-       Now try consecutive text items on the
-       same approximate horizontal row.
-
-       This catches phrases split into multiple
-       PDF text objects.
-    */
-
-    for (let i = 0; i < items.length; i++) {
-
-        let collected = "";
-
-        const matched = [];
-
-        let previous = null;
-
-        for (
-            let j = i;
-            j < Math.min(i + targetWords.length + 4, items.length);
-            j++
-        ) {
-
-            const item =
-                items[j];
-
-            /*
-               Don't cross large vertical gaps.
-            */
-
-            if (
-                previous &&
-                Math.abs(
-                    item.y - previous.y
-                ) > 10
-            ) {
-                break;
-            }
-
-            /*
-               Don't cross a large horizontal jump.
-               This prevents accidentally joining the
-               two columns of the Phrase Book.
-            */
-
-            if (
-                previous &&
-                item.x -
-                (previous.x + previous.width)
-                > 90
-            ) {
-                break;
-            }
-
-            collected =
-                (
-                    collected +
-                    " " +
-                    item.normalized
-                )
-                .replace(/\s+/g, " ")
-                .trim();
-
-            matched.push(item);
-
-            if (
-                collected ===
-                target
-            ) {
-
-                return {
-                    start: i,
-                    end: j,
-                    items: matched
-                };
-
-            }
-
-            /*
-               If the collected text can no longer
-               begin with the target, stop.
-            */
-
-            if (
-                !target.startsWith(
-                    collected
-                )
-            ) {
-
-                break;
-            }
-
-            previous = item;
-        }
-    }
-
-    return null;
-}
-
-
-/* =========================================================
-   BUILD PHRASE INDEX
-========================================================= */
-
-async function buildPhraseIndex() {
-
-    if (!phraseBook) {
-        return;
-    }
-
-    phraseIndex.clear();
-
-    /*
-       We do not attempt to create a fake dictionary.
-
-       Instead, we index the actual text on every
-       Phrase Book page. This allows the real scanned
-       phrase image to be retrieved later.
-    */
-
-    for (
-        let pageNumber = 1;
-        pageNumber <= phraseBook.numPages;
-        pageNumber++
-    ) {
-
-        const page =
-            await extractPhrasePage(
-                pageNumber
-            );
-
-        /*
-           Store normalized text strings.
-
-           This makes searching much faster after
-           the first load.
-        */
-
-        const seen =
-            new Set();
-
-        for (const item of page.items) {
-
-            if (
-                item.normalized.length < 2
-            ) {
-                continue;
-            }
-
-            if (
-                seen.has(
-                    item.normalized
-                )
-            ) {
-                continue;
-            }
-
-            seen.add(
-                item.normalized
-            );
-
-            /*
-               Single text items that contain multiple
-               words are especially useful.
-            */
-
-            if (
-                item.normalized.includes(" ")
-            ) {
-
-                if (
-                    !phraseIndex.has(
-                        item.normalized
-                    )
-                ) {
-
-                    phraseIndex.set(
-                        item.normalized,
-                        {
-                            page:
-                                pageNumber,
-                            mode:
-                                "single",
-                            item:
-                                item
-                        }
-                    );
-
-                }
-
-            }
-
-        }
-    }
-
-    console.log(
-        "Phrase index:",
-        phraseIndex.size,
-        "entries"
+/* ============================================================
+   DICTIONARY IMAGE
+   ============================================================ */
+
+function dictionaryPageUrl(series, page) {
+
+    const pageNumber =
+        String(page).padStart(3, "0");
+
+    return (
+        BASE +
+        series +
+        "/pages/" +
+        pageNumber +
+        ".png"
     );
 }
 
 
-/* =========================================================
-   SEARCH PHRASE BOOK
-========================================================= */
-
-async function findPhraseBookPhrase(
-    phrase
-) {
-
-    if (
-        !phraseBookReady ||
-        !phraseBook
-    ) {
-        return null;
-    }
-
-    const target =
-        normalize(phrase);
-
-    /*
-       Fast lookup.
-    */
-
-    if (
-        phraseIndex.has(target)
-    ) {
-
-        return phraseIndex.get(target);
-
-    }
-
-
-    /*
-       Full page search.
-
-       This catches phrases that are split into
-       multiple PDF text objects.
-    */
-
-    for (
-        let pageNumber = 1;
-        pageNumber <= phraseBook.numPages;
-        pageNumber++
-    ) {
-
-        const page =
-            await extractPhrasePage(
-                pageNumber
-            );
-
-        const match =
-            findPhraseOnPage(
-                page,
-                target
-            );
-
-        if (match) {
-
-            return {
-                page:
-                    pageNumber,
-                mode:
-                    "sequence",
-                match:
-                    match
-            };
-
-        }
-    }
-
-    return null;
-}
-
-
-/* =========================================================
-   RENDER PHRASE BOOK PAGE
-========================================================= */
-
-async function renderPhraseBookPhrase(
-    phrase,
-    result,
-    container
-) {
-
-    if (!result) {
-
-        showMissing(
-            container,
-            "Phrase not found"
-        );
-
-        return;
-    }
-
-    try {
-
-        const page =
-            await phraseBook.getPage(
-                result.page
-            );
-
-        /*
-           Render at 2x for better crop quality.
-        */
-
-        const scale = 2;
-
-        const viewport =
-            page.getViewport({
-                scale: scale
-            });
-
-        const canvas =
-            document.createElement(
-                "canvas"
-            );
-
-        canvas.width =
-            Math.ceil(
-                viewport.width
-            );
-
-        canvas.height =
-            Math.ceil(
-                viewport.height
-            );
-
-        const context =
-            canvas.getContext(
-                "2d"
-            );
-
-        await page.render({
-            canvasContext:
-                context,
-            viewport:
-                viewport
-        }).promise;
-
-
-        /*
-           Locate the phrase text.
-        */
-
-        let textItems = [];
-
-        if (
-            result.mode ===
-            "single"
-        ) {
-
-            textItems = [
-                result.item
-            ];
-
-        } else {
-
-            textItems =
-                result.match.items;
-
-        }
-
-        const left =
-            Math.min(
-                ...textItems.map(
-                    x => x.x
-                )
-            );
-
-        const right =
-            Math.max(
-                ...textItems.map(
-                    x =>
-                        x.x +
-                        x.width
-                )
-            );
-
-        const bottom =
-            Math.min(
-                ...textItems.map(
-                    x => x.y
-                )
-            );
-
-        const top =
-            Math.max(
-                ...textItems.map(
-                    x =>
-                        x.y +
-                        x.height
-                )
-            );
-
-
-        /*
-           Phrase Book layout normally places the
-           shorthand outline beside the printed phrase.
-
-           We therefore take an area to the LEFT of
-           the phrase label.
-
-           We also allow a little extra width because
-           some phrase outlines are long.
-        */
-
-        const phraseWidth =
-            right - left;
-
-        let cropWidth =
-            Math.max(
-                150,
-                Math.min(
-                    300,
-                    phraseWidth * 1.8
-                )
-            );
-
-        /*
-           Position to the left of the printed phrase.
-        */
-
-        let sx =
-            (left * scale) -
-            (cropWidth * scale) -
-            (12 * scale);
-
-        /*
-           Convert PDF bottom-origin Y coordinate
-           to canvas top-origin coordinate.
-        */
-
-        const canvasPhraseTop =
-            viewport.height -
-            (top * scale);
-
-        let sy =
-            canvasPhraseTop -
-            (12 * scale);
-
-        let cropHeight =
-            Math.max(
-                55,
-                Math.min(
-                    95,
-                    (top - bottom + 35)
-                )
-            ) * scale;
-
-
-        /*
-           If the phrase is near the left edge,
-           expand the crop to the right of the
-           phrase as a fallback.
-        */
-
-        if (sx < 0) {
-
-            sx =
-                left * scale;
-
-            cropWidth =
-                Math.min(
-                    320 * scale,
-                    viewport.width -
-                    sx
-                );
-
-        }
-
-
-        /*
-           Clamp crop.
-        */
-
-        sx =
-            Math.max(
-                0,
-                Math.min(
-                    sx,
-                    viewport.width -
-                    cropWidth
-                )
-            );
-
-        sy =
-            Math.max(
-                0,
-                Math.min(
-                    sy,
-                    viewport.height -
-                    cropHeight
-                )
-            );
-
-
-        /*
-           Create crop canvas.
-        */
-
-        const cropCanvas =
-            document.createElement(
-                "canvas"
-            );
-
-        cropCanvas.width =
-            Math.ceil(
-                cropWidth
-            );
-
-        cropCanvas.height =
-            Math.ceil(
-                cropHeight
-            );
-
-        const cropContext =
-            cropCanvas.getContext(
-                "2d"
-            );
-
-        cropContext.fillStyle =
-            "white";
-
-        cropContext.fillRect(
-            0,
-            0,
-            cropCanvas.width,
-            cropCanvas.height
-        );
-
-        cropContext.drawImage(
-            canvas,
-            sx,
-            sy,
-            cropWidth,
-            cropHeight,
-            0,
-            0,
-            cropWidth,
-            cropHeight
-        );
-
-
-        /*
-           Display crop.
-        */
-
-        const img =
-            document.createElement(
-                "img"
-            );
-
-        img.src =
-            cropCanvas.toDataURL(
-                "image/png"
-            );
-
-        img.style.position =
-            "absolute";
-
-        img.style.left =
-            "0";
-
-        img.style.top =
-            "0";
-
-        img.style.width =
-            "365px";
-
-        img.style.height =
-            "100px";
-
-        img.style.objectFit =
-            "contain";
-
-        container.innerHTML = "";
-
-        container.appendChild(
-            img
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Phrase rendering error:",
-            error
-        );
-
-        showMissing(
-            container,
-            "Could not render phrase"
-        );
-
-    }
-}
-
-
-/* =========================================================
-   RENDER GREGGDICT WORD
-   ORIGINAL WORKING METHOD PRESERVED
-========================================================= */
+/* ============================================================
+   RENDER WORD
+   ============================================================ */
 
 function renderDictionaryWord(
+    container,
+    series,
     entry,
-    container
+    large = false
 ) {
 
-    if (!entry) {
-
-        showMissing(
-            container,
-            "Not found"
-        );
-
-        return;
-    }
+    const displaySize =
+        large
+            ? DISPLAY_SIZE_LARGE
+            : DISPLAY_SIZE;
 
     const img =
-        document.createElement(
-            "img"
-        );
+        document.createElement("img");
 
     img.src =
-        GREGGDICT +
-        currentSeries +
-        "/pages/" +
-        String(entry.page)
-            .padStart(3, "0") +
-        ".png?cb=" +
+        dictionaryPageUrl(
+            series,
+            entry.page
+        ) +
+        "?cb=" +
         Date.now();
 
+    img.onload = function () {
 
-    img.onload = function() {
+        const naturalWidth =
+            img.naturalWidth || IMG_WIDTH;
 
         const scale =
-            IMG_WIDTH /
-            img.naturalWidth;
+            IMG_WIDTH / naturalWidth;
 
         img.style.width =
             IMG_WIDTH + "px";
 
-        img.style.left =
-            -(
-                entry.x * scale -
-                OFFSET
-            ) + "px";
-
-        img.style.top =
+        const top =
             -(
                 entry.y * scale -
-                DISPLAY_HEIGHT / 2
-            ) + "px";
+                displaySize.y / 2
+            );
+
+        const left =
+            -(
+                entry.x * scale -
+                displaySize.offset
+            );
+
+        img.style.top =
+            top + "px";
+
+        img.style.left =
+            left + "px";
 
     };
 
-
-    container.innerHTML = "";
-
-    container.appendChild(
-        img
-    );
+    container.appendChild(img);
 }
 
 
-/* =========================================================
-   MISSING
-========================================================= */
+/* ============================================================
+   WORD CARD
+   ============================================================ */
 
-function showMissing(
-    container,
-    message
-) {
-
-    container.innerHTML =
-        `<div class="missing">
-            ${escapeHTML(message)}
-         </div>`;
-}
-
-
-/* =========================================================
-   LOADING
-========================================================= */
-
-function showLoading(
-    container
-) {
-
-    container.innerHTML =
-        `<div class="loading">
-            Looking up...
-         </div>`;
-}
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function escapeHTML(text) {
-
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-
-/* =========================================================
-   CREATE CARD
-========================================================= */
-
-function createCard(
-    text,
-    source
+function createWordCard(
+    word,
+    dictionary,
+    series
 ) {
 
     const card =
-        document.createElement(
-            "div"
+        document.createElement("div");
+
+    card.className = "card";
+
+    const title =
+        document.createElement("div");
+
+    title.className = "word";
+
+    title.textContent = word;
+
+    card.appendChild(title);
+
+    const source =
+        document.createElement("div");
+
+    source.className = "source";
+
+    source.textContent =
+        series + " Dictionary";
+
+    card.appendChild(source);
+
+    const outline =
+        document.createElement("div");
+
+    outline.className = "outline";
+
+    card.appendChild(outline);
+
+    const entry =
+        findWord(
+            dictionary,
+            word
         );
 
-    card.className =
-        "card";
+    if (!entry) {
 
-    card.innerHTML = `
-        <div class="label">
-            ${escapeHTML(text)}
-        </div>
+        outline.innerHTML =
+            '<div class="missing">' +
+            'No exact dictionary entry found.' +
+            '</div>';
 
-        <div class="outline"></div>
+        return card;
+    }
 
-        <div class="source">
-            ${escapeHTML(source)}
-        </div>
-    `;
+    renderDictionaryWord(
+        outline,
+        series,
+        entry
+    );
 
     return card;
 }
 
 
-/* =========================================================
-   FIND BEST PHRASE
-========================================================= */
+/* ============================================================
+   PHRASE MATCHING
+   ============================================================ */
 
-async function findBestPhrase(
-    words,
-    start
-) {
+function findPhrases(words) {
 
-    if (
-        currentSeries !==
-        "Anniversary"
-    ) {
-        return null;
-    }
+    const matches = [];
 
-    /*
-       Longest first.
-       8 → 7 → 6 → ... → 2 words
-    */
+    let i = 0;
 
-    const max =
-        Math.min(
-            8,
-            words.length -
-            start
-        );
+    while (i < words.length) {
 
-    for (
-        let count = max;
-        count >= 2;
-        count--
-    ) {
+        let best = null;
 
-        const candidate =
-            words
-                .slice(
-                    start,
-                    start + count
+        for (
+            const phrase of COMMON_PHRASES
+        ) {
+
+            const parts =
+                phrase.split(" ");
+
+            if (
+                i + parts.length >
+                words.length
+            ) {
+                continue;
+            }
+
+            let same = true;
+
+            for (
+                let j = 0;
+                j < parts.length;
+                j++
+            ) {
+
+                if (
+                    words[i + j] !==
+                    parts[j]
+                ) {
+                    same = false;
+                    break;
+                }
+
+            }
+
+            if (
+                same &&
+                (
+                    !best ||
+                    parts.length >
+                    best.parts.length
                 )
-                .join(" ");
+            ) {
 
-        const result =
-            await findPhraseBookPhrase(
-                candidate
-            );
+                best = {
+                    text: phrase,
+                    parts: parts,
+                    start: i
+                };
 
-        if (result) {
+            }
 
-            return {
-                text:
-                    candidate,
-                count:
-                    count,
-                result:
-                    result
-            };
+        }
+
+        if (best) {
+
+            matches.push(best);
+
+            i += best.parts.length;
+
+        } else {
+
+            i++;
 
         }
 
     }
 
-    return null;
+    return matches;
 }
 
 
-/* =========================================================
-   TRANSLATE
-========================================================= */
+/* ============================================================
+   PHRASE CARD
+   ============================================================ */
 
-let translationNumber = 0;
+function createPhraseCard(
+    phrase,
+    dictionary,
+    series
+) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "card phrase-card";
+
+    const title =
+        document.createElement("div");
+
+    title.className =
+        "phrase-title";
+
+    title.textContent =
+        phrase.text;
+
+    card.appendChild(title);
+
+    const note =
+        document.createElement("div");
+
+    note.className =
+        "phrase-note";
+
+    note.textContent =
+        "Recognized phrase — individual Greggdict outlines shown below.";
+
+    card.appendChild(note);
+
+    const wordsContainer =
+        document.createElement("div");
+
+    wordsContainer.className =
+        "phrase-words";
+
+    for (
+        const word of phrase.parts
+    ) {
+
+        const box =
+            document.createElement("div");
+
+        box.className =
+            "mini-word";
+
+        const label =
+            document.createElement("div");
+
+        label.className =
+            "mini-word-title";
+
+        label.textContent =
+            word;
+
+        box.appendChild(label);
+
+        const mini =
+            document.createElement("div");
+
+        mini.className =
+            "mini-outline";
+
+        box.appendChild(mini);
+
+        const entry =
+            findWord(
+                dictionary,
+                word
+            );
+
+        if (entry) {
+
+            renderMiniWord(
+                mini,
+                series,
+                entry
+            );
+
+        } else {
+
+            mini.innerHTML =
+                '<div class="missing">' +
+                'Not found' +
+                '</div>';
+
+        }
+
+        wordsContainer.appendChild(box);
+
+    }
+
+    card.appendChild(wordsContainer);
+
+    return card;
+}
+
+
+/* ============================================================
+   MINI WORD RENDERER
+   ============================================================ */
+
+function renderMiniWord(
+    container,
+    series,
+    entry
+) {
+
+    const img =
+        document.createElement("img");
+
+    img.src =
+        dictionaryPageUrl(
+            series,
+            entry.page
+        ) +
+        "?cb=" +
+        Date.now();
+
+    img.onload = function () {
+
+        const naturalWidth =
+            img.naturalWidth || IMG_WIDTH;
+
+        const scale =
+            IMG_WIDTH / naturalWidth;
+
+        img.style.width =
+            IMG_WIDTH + "px";
+
+        img.style.top =
+            -(
+                entry.y * scale -
+                45
+            ) + "px";
+
+        img.style.left =
+            -(
+                entry.x * scale -
+                5
+            ) + "px";
+
+    };
+
+    container.appendChild(img);
+}
+
+
+/* ============================================================
+   TRANSLATE
+   ============================================================ */
 
 async function translate() {
 
-    const myRun =
-        ++translationNumber;
-
     const input =
         document
-            .getElementById(
-                "input"
-            )
+            .getElementById("inputText")
+            .value
+            .trim();
+
+    const series =
+        document
+            .getElementById("series")
             .value;
 
     const results =
         document
-            .getElementById(
-                "results"
-            );
+            .getElementById("results");
+
+    const status =
+        document
+            .getElementById("status");
 
     results.innerHTML = "";
 
-    const normalized =
-        normalize(input);
+    if (!input) {
 
-    if (!normalized) {
+        status.textContent =
+            "Type something first.";
+
         return;
     }
-
-    const words =
-        normalized.split(" ");
-
-    let index = 0;
-
-
-    while (
-        index < words.length
-    ) {
-
-        /*
-           Ignore stale translation runs.
-        */
-
-        if (
-            myRun !==
-            translationNumber
-        ) {
-            return;
-        }
-
-
-        /* ---------------------------------------------
-           PHRASE FIRST
-        --------------------------------------------- */
-
-        const phrase =
-            await findBestPhrase(
-                words,
-                index
-            );
-
-        if (phrase) {
-
-            const card =
-                createCard(
-                    phrase.text,
-                    "Anniversary Phrase Book"
-                );
-
-            results.appendChild(
-                card
-            );
-
-            const outline =
-                card.querySelector(
-                    ".outline"
-                );
-
-            showLoading(
-                outline
-            );
-
-            await renderPhraseBookPhrase(
-                phrase.text,
-                phrase.result,
-                outline
-            );
-
-            index +=
-                phrase.count;
-
-            continue;
-        }
-
-
-        /* ---------------------------------------------
-           INDIVIDUAL WORD
-        --------------------------------------------- */
-
-        const word =
-            words[index];
-
-        const card =
-            createCard(
-                word,
-                currentSeries +
-                " dictionary"
-            );
-
-        results.appendChild(
-            card
-        );
-
-        const outline =
-            card.querySelector(
-                ".outline"
-            );
-
-        const entry =
-            findDictionaryWord(
-                word
-            );
-
-        renderDictionaryWord(
-            entry,
-            outline
-        );
-
-        index++;
-
-    }
-
-}
-
-
-/* =========================================================
-   SERIES BUTTONS
-========================================================= */
-
-document
-    .getElementById(
-        "anniversaryBtn"
-    )
-    .addEventListener(
-        "click",
-        async function() {
-
-            currentSeries =
-                "Anniversary";
-
-            this.classList.add(
-                "active"
-            );
-
-            document
-                .getElementById(
-                    "simplifiedBtn"
-                )
-                .classList.remove(
-                    "active"
-                );
-
-            await translate();
-
-        }
-    );
-
-
-document
-    .getElementById(
-        "simplifiedBtn"
-    )
-    .addEventListener(
-        "click",
-        async function() {
-
-            currentSeries =
-                "Simplified";
-
-            this.classList.add(
-                "active"
-            );
-
-            document
-                .getElementById(
-                    "anniversaryBtn"
-                )
-                .classList.remove(
-                    "active"
-                );
-
-            await translate();
-
-        }
-    );
-
-
-/* =========================================================
-   LIVE INPUT
-========================================================= */
-
-let typingTimer = null;
-
-document
-    .getElementById(
-        "input"
-    )
-    .addEventListener(
-        "input",
-        function() {
-
-            clearTimeout(
-                typingTimer
-            );
-
-            typingTimer =
-                setTimeout(
-                    translate,
-                    500
-                );
-
-        }
-    );
-
-
-/* =========================================================
-   INITIALIZATION
-========================================================= */
-
-(async function() {
-
-    const status =
-        document.getElementById(
-            "status"
-        );
 
     try {
 
         status.textContent =
-            "Loading Greggdict...";
+            "Loading " +
+            series +
+            " dictionary...";
 
-        /*
-           KEEPING OUR ORIGINAL SOURCE.
-        */
+        const dictionary =
+            await loadDictionary(series);
 
-        anniversaryDictionary =
-            await loadDictionary(
-                "Anniversary"
-            );
+        const words =
+            tokenize(input);
 
-        simplifiedDictionary =
-            await loadDictionary(
-                "Simplified"
-            );
-
+        const phrases =
+            findPhrases(words);
 
         status.textContent =
-            "Loading Anniversary Phrase Book...";
+            "Ready — " +
+            series +
+            " Greggdict";
 
+        /*
+         * Show phrase recognition first.
+         */
 
-        await loadPhraseBook();
-
-
-        if (
-            phraseBookReady
+        for (
+            const phrase of phrases
         ) {
 
-            status.textContent =
-                "Ready — Greggdict + Anniversary Phrase Book";
-
-        } else {
-
-            status.textContent =
-                "Ready — Greggdict only";
+            results.appendChild(
+                createPhraseCard(
+                    phrase,
+                    dictionary,
+                    series
+                )
+            );
 
         }
 
+        /*
+         * Show all individual words.
+         */
+
+        for (
+            const word of words
+        ) {
+
+            results.appendChild(
+                createWordCard(
+                    word,
+                    dictionary,
+                    series
+                )
+            );
+
+        }
 
     } catch (error) {
 
         console.error(error);
 
         status.textContent =
-            "Dictionary loading error.";
+            "Error loading Gregg dictionary.";
+
+        results.innerHTML =
+            '<div class="card">' +
+            '<div class="missing">' +
+            error.message +
+            '</div>' +
+            '</div>';
 
     }
 
-})();
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+document
+    .getElementById("translateBtn")
+    .addEventListener(
+        "click",
+        translate
+    );
+
+
+document
+    .getElementById("clearBtn")
+    .addEventListener(
+        "click",
+        function () {
+
+            document
+                .getElementById("inputText")
+                .value = "";
+
+            document
+                .getElementById("results")
+                .innerHTML = "";
+
+            document
+                .getElementById("status")
+                .textContent =
+                    "Ready.";
+
+        }
+    );
+
+
+/* Ctrl + Enter */
+
+document
+    .getElementById("inputText")
+    .addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.ctrlKey &&
+                event.key === "Enter"
+            ) {
+
+                translate();
+
+            }
+
+        }
+    );
+
+
+/* Initial load */
+
+loadDictionary("Anniversary")
+    .then(() => {
+
+        document
+            .getElementById("status")
+            .textContent =
+                "Ready — Greggdict loaded.";
+
+    })
+    .catch(error => {
+
+        console.error(error);
+
+        document
+            .getElementById("status")
+            .textContent =
+                "Could not load Greggdict.";
+
+    });
 
 </script>
 
