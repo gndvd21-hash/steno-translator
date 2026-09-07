@@ -6,9 +6,6 @@
 
 <title>Gregg Shorthand Translator</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"
-        type="module"></script>
-
 <style>
 * {
     box-sizing: border-box;
@@ -184,7 +181,6 @@ Series:
 </label>
 
 <button id="translateBtn">Translate</button>
-
 <button id="clearBtn">Clear</button>
 
 </div>
@@ -223,7 +219,7 @@ const MANUAL_PDF =
 
 
 /* =========================================================
-   GREGGDICT SETTINGS
+   SETTINGS
    ========================================================= */
 
 const IMG_WIDTH = 1281;
@@ -236,16 +232,30 @@ const DISPLAY_SIZE = {
 
 
 /* =========================================================
-   DATA
+   VARIABLES
    ========================================================= */
 
 let dictionary = [];
-
 let pdfDocument = null;
 
 
 /* =========================================================
-   LOAD GREGGDICT
+   NORMALIZE
+   ========================================================= */
+
+function normalizeText(text) {
+
+    return String(text || "")
+        .toLowerCase()
+        .replace(/[“”‘’]/g, "'")
+        .replace(/[^a-z0-9']+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+/* =========================================================
+   GREGGDICT
    ========================================================= */
 
 async function loadDictionary(series) {
@@ -272,14 +282,10 @@ async function loadDictionary(series) {
 }
 
 
-/* =========================================================
-   FIND WORD IN GREGGDICT
-   ========================================================= */
-
 function findWord(word) {
 
     const target =
-        word.toLowerCase();
+        normalizeText(word);
 
     for (const page of dictionary) {
 
@@ -290,7 +296,7 @@ function findWord(word) {
             if (!item.t) continue;
 
             if (
-                item.t.toLowerCase() ===
+                normalizeText(item.t) ===
                 target
             ) {
 
@@ -301,18 +307,12 @@ function findWord(word) {
                 };
 
             }
-
         }
-
     }
 
     return null;
 }
 
-
-/* =========================================================
-   GREGGDICT PAGE
-   ========================================================= */
 
 function greggPage(series, page) {
 
@@ -325,10 +325,6 @@ function greggPage(series, page) {
     );
 }
 
-
-/* =========================================================
-   RENDER GREGGDICT WORD
-   ========================================================= */
 
 function renderGreggWord(
     container,
@@ -370,10 +366,6 @@ function renderGreggWord(
     container.appendChild(img);
 }
 
-
-/* =========================================================
-   WORD CARD
-   ========================================================= */
 
 function createWordCard(
     word,
@@ -433,24 +425,9 @@ function createWordCard(
             series,
             entry
         );
-
     }
 
     return card;
-}
-
-
-/* =========================================================
-   NORMALIZE TEXT
-   ========================================================= */
-
-function normalizeText(text) {
-
-    return text
-        .toLowerCase()
-        .replace(/[“”‘’]/g, "'")
-        .replace(/\s+/g, " ")
-        .trim();
 }
 
 
@@ -464,49 +441,95 @@ async function loadManual() {
         return pdfDocument;
     }
 
-    document.getElementById("status").textContent =
-        "Loading 1929 Gregg Shorthand Manual...";
-
     pdfDocument =
-        await pdfjsLib.getDocument(
-            MANUAL_PDF
-        ).promise;
+        await pdfjsLib
+            .getDocument(
+                MANUAL_PDF
+            )
+            .promise;
 
     return pdfDocument;
 }
 
 
 /* =========================================================
-   SEARCH PDF
-   THIS IS OUR PROGRAMMATIC CTRL+F
+   GET COMPLETE PAGE TEXT
+   ========================================================= */
+
+async function getPageData(pageNumber) {
+
+    const page =
+        await pdfDocument.getPage(
+            pageNumber
+        );
+
+    const textContent =
+        await page.getTextContent();
+
+    const items =
+        textContent.items || [];
+
+    const text =
+        normalizeText(
+            items
+                .map(
+                    item =>
+                        item.str || ""
+                )
+                .join(" ")
+        );
+
+    return {
+        page,
+        items,
+        text
+    };
+}
+
+
+/* =========================================================
+   SEARCH ALL OCCURRENCES
    ========================================================= */
 
 async function searchPDF(searchText) {
 
-    const pdf =
-        await loadManual();
-
     const wanted =
         normalizeText(searchText);
 
-    const matches = [];
+    const candidates = [];
 
     for (
         let pageNumber = 1;
-        pageNumber <= pdf.numPages;
+        pageNumber <= pdfDocument.numPages;
         pageNumber++
     ) {
 
-        const page =
-            await pdf.getPage(
+        const data =
+            await getPageData(
                 pageNumber
             );
 
-        const textContent =
-            await page.getTextContent();
-
         const items =
-            textContent.items || [];
+            data.items;
+
+        const pageText =
+            data.text;
+
+        /*
+         * Page must contain the phrase somewhere.
+         */
+
+        if (
+            !pageText.includes(wanted)
+        ) {
+            continue;
+        }
+
+
+        /*
+         * Find the actual text item(s)
+         * containing the phrase.
+         */
 
         for (
             let i = 0;
@@ -514,63 +537,32 @@ async function searchPDF(searchText) {
             i++
         ) {
 
-            const item =
-                items[i];
+            let combined = "";
 
-            if (!item.str) continue;
+            let last = i;
 
-            const current =
-                normalizeText(
-                    item.str
+            for (
+                let j = i;
+                j < Math.min(
+                    items.length,
+                    i + 8
                 );
-
-            /* Exact match inside a PDF text item */
-
-            if (
-                current === wanted ||
-                current.includes(wanted)
+                j++
             ) {
 
-                matches.push({
-                    page: pageNumber,
-                    item: item,
-                    text: item.str,
-                    index: i
-                });
-
-            }
-
-            /*
-             * Some PDF text is split into several
-             * separate text objects.
-             *
-             * Example:
-             * "Dear" + "Sir"
-             */
-
-            let combined = current;
-
-            let end = i;
-
-            while (
-                end + 1 < items.length &&
-                combined.length < wanted.length + 30
-            ) {
-
-                const next =
+                const part =
                     normalizeText(
-                        items[end + 1].str || ""
+                        items[j].str
                     );
 
-                if (!next) {
-                    end++;
-                    continue;
-                }
+                if (!part) continue;
 
-                combined +=
-                    " " + next;
+                combined =
+                    combined
+                    ? combined + " " + part
+                    : part;
 
-                end++;
+                last = j;
 
                 if (
                     combined.includes(
@@ -578,12 +570,106 @@ async function searchPDF(searchText) {
                     )
                 ) {
 
-                    matches.push({
-                        page: pageNumber,
-                        item: item,
-                        item2: items[end],
-                        text: combined,
-                        index: i
+                    /*
+                     * SCORE THIS OCCURRENCE
+                     */
+
+                    let score = 0;
+
+                    const context =
+                        pageText;
+
+                    /*
+                     * Exact occurrence gets points.
+                     */
+
+                    if (
+                        combined === wanted
+                    ) {
+                        score += 30;
+                    }
+
+                    /*
+                     * Important Gregg sections.
+                     */
+
+                    if (
+                        context.includes(
+                            "business abbreviations"
+                        )
+                    ) {
+                        score += 100;
+                    }
+
+                    if (
+                        context.includes(
+                            "brief forms for common words"
+                        )
+                    ) {
+                        score += 90;
+                    }
+
+                    if (
+                        context.includes(
+                            "phrase drill"
+                        )
+                    ) {
+                        score += 90;
+                    }
+
+                    if (
+                        context.includes(
+                            "phrasing"
+                        )
+                    ) {
+                        score += 40;
+                    }
+
+                    /*
+                     * Penalize obvious writing-practice
+                     * / ordinary sentence pages.
+                     */
+
+                    if (
+                        context.includes(
+                            "writing practice"
+                        )
+                    ) {
+                        score -= 25;
+                    }
+
+                    /*
+                     * Penalize pages where phrase
+                     * appears only inside a long
+                     * ordinary sentence.
+                     */
+
+                    if (
+                        combined !== wanted
+                    ) {
+                        score -= 5;
+                    }
+
+                    candidates.push({
+
+                        pageNumber,
+
+                        page:
+                            data.page,
+
+                        items,
+
+                        item:
+                            items[i],
+
+                        item2:
+                            items[last],
+
+                        score,
+
+                        context:
+                            context
+
                     });
 
                     break;
@@ -592,12 +678,59 @@ async function searchPDF(searchText) {
         }
     }
 
-    return matches;
+    /*
+     * Highest-quality match first.
+     */
+
+    candidates.sort(
+        (a, b) =>
+            b.score - a.score
+    );
+
+    return candidates;
 }
 
 
 /* =========================================================
-   RENDER PDF MATCH
+   FIND BEST PDF MATCH
+   ========================================================= */
+
+async function findBestPDFMatch(
+    phrase
+) {
+
+    const matches =
+        await searchPDF(
+            phrase
+        );
+
+    if (
+        matches.length === 0
+    ) {
+        return null;
+    }
+
+    console.log(
+        "PDF matches for:",
+        phrase,
+        matches
+            .slice(0, 10)
+            .map(
+                m => ({
+                    page:
+                        m.pageNumber,
+                    score:
+                        m.score
+                })
+            )
+    );
+
+    return matches[0];
+}
+
+
+/* =========================================================
+   RENDER PDF REGION
    ========================================================= */
 
 async function renderPDFMatch(
@@ -605,13 +738,8 @@ async function renderPDFMatch(
     match
 ) {
 
-    const pdf =
-        pdfDocument;
-
     const page =
-        await pdf.getPage(
-            match.page
-        );
+        match.page;
 
     const viewport =
         page.getViewport({
@@ -619,28 +747,17 @@ async function renderPDFMatch(
         });
 
     /*
-     * PDF text item coordinates.
+     * Text position.
      */
 
     const transform =
-        viewport.transform;
-
-    const item =
-        match.item;
-
-    const tx =
-        item.transform;
-
-    /*
-     * Convert PDF coordinates
-     * into canvas coordinates.
-     */
+        match.item.transform;
 
     const pdfX =
-        tx[4];
+        transform[4];
 
     const pdfY =
-        tx[5];
+        transform[5];
 
     const point =
         viewport.convertToViewportPoint(
@@ -648,31 +765,42 @@ async function renderPDFMatch(
             pdfY
         );
 
-    let x =
+    const x =
         point[0];
 
-    let y =
+    const y =
         point[1];
 
+
     /*
-     * The important trick:
-     *
-     * We don't blindly crop one tiny box.
-     *
-     * We make a larger region around
-     * the exact Ctrl+F match so the
-     * actual shorthand printed around
-     * the entry remains visible.
+     * Region around the
+     * actual Ctrl+F result.
      */
 
-    const cropWidth = 330;
-    const cropHeight = 180;
+    const cropWidth =
+        430;
+
+    const cropHeight =
+        190;
+
+
+    /*
+     * The shorthand in these
+     * dictionary/abbreviation layouts
+     * is normally immediately around
+     * the matched English text.
+     */
 
     let cropX =
-        x - 100;
+        x - 120;
 
     let cropY =
-        y - 80;
+        y - 105;
+
+
+    /*
+     * Keep crop inside page.
+     */
 
     cropX =
         Math.max(
@@ -694,6 +822,7 @@ async function renderPDFMatch(
             )
         );
 
+
     const canvas =
         document.createElement(
             "canvas"
@@ -705,15 +834,6 @@ async function renderPDFMatch(
     canvas.height =
         cropHeight;
 
-    const ctx =
-        canvas.getContext(
-            "2d"
-        );
-
-    /*
-     * Render the complete PDF page
-     * temporarily.
-     */
 
     const fullCanvas =
         document.createElement(
@@ -730,29 +850,41 @@ async function renderPDFMatch(
             viewport.height
         );
 
+
     await page.render({
+
         canvasContext:
-            fullCanvas.getContext("2d"),
-        viewport:
-            viewport
+            fullCanvas.getContext(
+                "2d"
+            ),
+
+        viewport
+
     }).promise;
 
-    /*
-     * Extract the region around
-     * the exact search result.
-     */
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
 
     ctx.drawImage(
+
         fullCanvas,
+
         cropX,
         cropY,
         cropWidth,
         cropHeight,
+
         0,
         0,
         cropWidth,
         cropHeight
+
     );
+
 
     container.innerHTML = "";
 
@@ -763,21 +895,36 @@ async function renderPDFMatch(
 
 
 /* =========================================================
-   PDF RESULT CARD
+   PDF CARD
    ========================================================= */
 
 async function createPDFCard(
     phrase
 ) {
 
+    const match =
+        await findBestPDFMatch(
+            phrase
+        );
+
+    if (!match) {
+        return null;
+    }
+
+
     const card =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     card.className =
         "card pdf-card";
 
+
     const title =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     title.className =
         "pdf-title";
@@ -785,76 +932,112 @@ async function createPDFCard(
     title.textContent =
         phrase;
 
-    card.appendChild(title);
+    card.appendChild(
+        title
+    );
+
 
     const info =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     info.className =
         "pdf-info";
 
     info.textContent =
-        "Searching the 1929 Gregg Shorthand Manual — programmatic Ctrl+F";
+        "Found in 1929 Gregg Shorthand Manual — page " +
+        match.pageNumber;
 
-    card.appendChild(info);
+    card.appendChild(
+        info
+    );
+
 
     const crop =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     crop.className =
         "pdf-crop";
 
     crop.innerHTML =
         '<div class="pdf-failed">' +
-        'Searching PDF...' +
+        'Rendering PDF entry...' +
         '</div>';
 
-    card.appendChild(crop);
+    card.appendChild(
+        crop
+    );
 
-    try {
 
-        const matches =
-            await searchPDF(
-                phrase
-            );
+    await renderPDFMatch(
+        crop,
+        match
+    );
 
-        if (
-            matches.length === 0
-        ) {
-
-            crop.innerHTML =
-                '<div class="pdf-failed">' +
-                'No exact PDF text match found.' +
-                '</div>';
-
-            return card;
-        }
-
-        const match =
-            matches[0];
-
-        info.textContent =
-            "Found in PDF page " +
-            match.page +
-            " — searching by PDF text coordinates";
-
-        await renderPDFMatch(
-            crop,
-            match
-        );
-
-    } catch(error) {
-
-        console.error(error);
-
-        crop.innerHTML =
-            '<div class="pdf-failed">' +
-            'PDF search failed: ' +
-            error.message +
-            '</div>';
-    }
 
     return card;
+}
+
+
+/* =========================================================
+   GET PHRASES FROM INPUT
+   ========================================================= */
+
+function getPhraseCandidates(words) {
+
+    const phrases = [];
+
+    /*
+     * Longest phrases first.
+     *
+     * This allows:
+     *
+     * "in my opinion"
+     *
+     * instead of:
+     *
+     * "in my"
+     * "my opinion"
+     */
+
+    for (
+        let length = 5;
+        length >= 2;
+        length--
+    ) {
+
+        for (
+            let i = 0;
+            i + length <= words.length;
+            i++
+        ) {
+
+            const phrase =
+                words
+                    .slice(
+                        i,
+                        i + length
+                    )
+                    .join(" ");
+
+            if (
+                !phrases.some(
+                    p =>
+                        p === phrase
+                )
+            ) {
+
+                phrases.push(
+                    phrase
+                );
+            }
+        }
+    }
+
+    return phrases;
 }
 
 
@@ -891,7 +1074,9 @@ async function translate() {
                 "status"
             );
 
+
     results.innerHTML = "";
+
 
     if (!input) {
 
@@ -901,28 +1086,22 @@ async function translate() {
         return;
     }
 
+
     try {
 
-        /*
-         * Load Greggdict first.
-         */
+        status.textContent =
+            "Loading Greggdict...";
 
         await loadDictionary(
             series
         );
 
-        /*
-         * Load PDF in parallel.
-         */
+
+        status.textContent =
+            "Opening 1929 Gregg Manual...";
 
         await loadManual();
 
-        status.textContent =
-            "Searching Greggdict + PDF...";
-
-        /*
-         * Clean words.
-         */
 
         const words =
             input
@@ -937,55 +1116,97 @@ async function translate() {
                 )
                 .filter(Boolean);
 
+
         /*
-         * Show PDF searches for phrases.
-         *
-         * Start with phrases of 2+ words.
+         * =====================================================
+         * PDF PHRASE SEARCH
+         * =====================================================
          */
 
+        const phrases =
+            getPhraseCandidates(
+                words
+            );
+
+
+        /*
+         * Only display PDF matches.
+         *
+         * We don't want random ordinary
+         * sentences filling the screen.
+         */
+
+        const shownPDFPages =
+            new Set();
+
+
         for (
-            let i = 0;
-            i < words.length - 1;
-            i++
+            const phrase of phrases
         ) {
 
-            const phrase =
-                words[i] +
-                " " +
-                words[i + 1];
+            status.textContent =
+                "Searching PDF for: " +
+                phrase;
 
-            /*
-             * Only try the PDF when
-             * it looks like an actual phrase.
-             */
 
             const card =
                 await createPDFCard(
                     phrase
                 );
 
+
+            if (!card) {
+                continue;
+            }
+
+
             /*
-             * Only add the card if
-             * PDF actually found it.
+             * Avoid displaying the same
+             * PDF page repeatedly.
              */
 
-            const failed =
-                card.querySelector(
-                    ".pdf-failed"
+            const pageText =
+                card
+                    .querySelector(
+                        ".pdf-info"
+                    )
+                    .textContent;
+
+
+            const pageMatch =
+                pageText.match(
+                    /page (\d+)/
                 );
 
-            if (!failed) {
 
-                results.appendChild(
-                    card
-                );
+            const pageNumber =
+                pageMatch
+                    ? pageMatch[1]
+                    : "";
 
-            }
+
+            /*
+             * For now we allow different
+             * phrases on the same page,
+             * because the PDF may contain
+             * multiple useful entries.
+             */
+
+            results.appendChild(
+                card
+            );
         }
 
+
         /*
-         * Then Greggdict words.
+         * =====================================================
+         * GREGGDICT WORDS
+         * =====================================================
          */
+
+        status.textContent =
+            "Rendering Greggdict words...";
+
 
         for (
             const word of words
@@ -997,11 +1218,12 @@ async function translate() {
                     series
                 )
             );
-
         }
 
+
         status.textContent =
-            "Ready — Greggdict + PDF search";
+            "Ready — Greggdict + 1929 PDF search";
+
 
     } catch(error) {
 
@@ -1054,13 +1276,12 @@ document
                 )
                 .textContent =
                     "Ready.";
-
         }
     );
 
 
 /* =========================================================
-   START
+   INITIAL
    ========================================================= */
 
 (async function() {
@@ -1087,7 +1308,7 @@ document
                 "status"
             )
             .textContent =
-                "Ready — PDF/Greggdict will load when used.";
+                "Ready — click Translate to begin.";
 
     }
 
