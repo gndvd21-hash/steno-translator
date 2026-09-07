@@ -1,110 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English to Gregg Shorthand Translator</title>
-    <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { margin: 0; padding: 20px; background-color: #f4f6f8; }
-        header { text-align: center; margin-bottom: 15px; }
-        .status-bar { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 15px; color: #28a745; }
-        .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; align-items: center; }
-        .container { display: flex; gap: 20px; height: 75vh; }
-        .panel { flex: 1; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-        textarea { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 16px; resize: none; }
-        .steno-output { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
-        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 6px; min-width: 85px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .word-card .label { font-size: 13px; color: #333; font-weight: bold; border-bottom: 1px solid #eee; width: 100%; text-align: center; padding-bottom: 4px; }
-        .steno-svg { width: 65px; height: 65px; margin-top: 5px; }
-        .no-match { font-size: 11px; color: #888; font-style: italic; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gregg Shorthand Side-by-Side Viewer</title>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #212529;
+      --border-color: #dee2e6;
+      --primary-color: #0d6efd;
+      --accent-color: #6c757d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    /* System Selector Toggle Switches */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-group {
+      display: inline-flex;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--primary-color);
+    }
+
+    .btn-group button {
+      background-color: var(--card-bg);
+      color: var(--primary-color);
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-group button.active {
+      background-color: var(--primary-color);
+      color: #fff;
+    }
+
+    /* Dual Pane Layout */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .pane {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .pane-header {
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--accent-color);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Line-by-Line Alignment Setup */
+    .entry-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .entry-row {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 6px;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .shorthand-container {
+      font-style: italic;
+      color: #333;
+    }
+
+    .shorthand-img {
+      max-height: 40px;
+      object-fit: contain;
+    }
+
+    @media (max-width: 768px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<header>
-    <h2>English to Gregg Shorthand Translator</h2>
-    <div id="status" class="status-bar">Ready! Type in the left box to generate steno outlines.</div>
-</header>
-
-<div class="controls">
-    <label><strong>Edition Mode:</strong></label>
-    <input type="radio" id="anniversary" name="edition" value="anniversary" checked onchange="translateText()">
-    <label for="anniversary">Anniversary</label>
-    
-    <input type="radio" id="simplified" name="edition" value="simplified" onchange="translateText()">
-    <label for="simplified">Simplified</label>
-</div>
-
 <div class="container">
-    <div class="panel">
-        <h3>English Text</h3>
-        <textarea id="inputText" placeholder="Type or paste your sentence or paragraph here..." oninput="translateText()"></textarea>
+  <header>
+    <h1>Gregg Shorthand Reference Sheet</h1>
+    <div class="controls">
+      <span>Edition:</span>
+      <div class="btn-group" id="editionToggle">
+        <button class="active" onclick="setEdition('anniversary')">Anniversary</button>
+        <button onclick="setEdition('simplified')">Simplified</button>
+      </div>
     </div>
-    
-    <div class="panel">
-        <h3>Gregg Steno Output</h3>
-        <div id="stenoDisplay" class="steno-output"></div>
-    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- Left Column: English Standard Text -->
+    <section class="pane">
+      <div class="pane-header">
+        <span>English Text / Dictation</span>
+      </div>
+      <div class="entry-list" id="textColumn">
+        <!-- Text entries injected by JavaScript -->
+      </div>
+    </section>
+
+    <!-- Right Column: Corresponding Shorthand Stroke -->
+    <section class="pane">
+      <div class="pane-header">
+        <span>Shorthand Outline</span>
+        <span id="activeEditionLabel">Anniversary Edition</span>
+      </div>
+      <div class="entry-list" id="shorthandColumn">
+        <!-- Shorthand entries injected by JavaScript -->
+      </div>
+    </section>
+  </main>
 </div>
 
 <script>
-    // Embedded vector dictionary for court steno & common terms
-    const stenoDictionary = {
-        "test": `<path d="M 15 45 Q 35 15 55 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "testing": `<path d="M 15 45 Q 35 15 55 45 Q 60 60 50 65" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "trial": `<path d="M 15 55 Q 35 15 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "printer": `<path d="M 15 15 L 15 55 Q 35 25 55 45 L 55 60" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "print": `<path d="M 15 15 L 15 55 Q 35 25 55 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "guide": `<path d="M 15 45 Q 35 15 55 45 L 55 60" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "image": `<path d="M 15 50 L 55 50 M 55 50 L 35 15" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "the": `<path d="M 25 45 Q 35 25 45 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "to": `<path d="M 15 35 C 25 15, 45 15, 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "of": `<path d="M 25 20 C 15 40, 15 55, 35 55" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "and": `<path d="M 15 45 Q 35 25 55 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "in": `<path d="M 15 35 L 45 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "is": `<path d="M 25 25 C 35 35, 35 45, 25 55" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "you": `<path d="M 15 35 Q 35 55 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "court": `<path d="M 15 20 C 15 50, 45 50, 50 30" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "order": `<path d="M 15 45 Q 30 20 45 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`
-    };
-
-    function translateText() {
-        const text = document.getElementById('inputText').value;
-        const display = document.getElementById('stenoDisplay');
-        
-        display.innerHTML = '';
-        if (!text.trim()) return;
-
-        const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-
-        words.forEach(word => {
-            if (!word) return;
-
-            const card = document.createElement('div');
-            card.className = 'word-card';
-
-            const label = document.createElement('span');
-            label.className = 'label';
-            label.innerText = word;
-            card.appendChild(label);
-
-            if (stenoDictionary[word]) {
-                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                svg.setAttribute("class", "steno-svg");
-                svg.setAttribute("viewBox", "0 0 70 70");
-                svg.innerHTML = stenoDictionary[word];
-                card.appendChild(svg);
-            } else {
-                const noMatch = document.createElement('span');
-                noMatch.className = 'no-match';
-                noMatch.innerText = '[no stroke]';
-                card.appendChild(noMatch);
-            }
-
-            display.appendChild(card);
-        });
+  // Sample Data Structure comparing Anniversary and Simplified entries
+  const shorthandData = [
+    {
+      id: 1,
+      text: "I am in receipt of your letter.",
+      anniversary: "[ Stroke Outline: A-M-R-E-S-E-T-L-E-T ]",
+      anniversaryImg: "", // Optional: "assets/anniversary/letter_ack.png"
+      simplified: "[ Stroke Outline: I-AM-RC-LTR ]",
+      simplifiedImg: ""  // Optional: "assets/simplified/letter_ack.png"
+    },
+    {
+      id: 2,
+      text: "Can you be with us tomorrow?",
+      anniversary: "[ Stroke Outline: K-U-B-W-U-S-T-M ]",
+      anniversaryImg: "",
+      simplified: "[ Stroke Outline: K-U-B-WITH-US-TM-O ]",
+      simplifiedImg: ""
+    },
+    {
+      id: 3,
+      text: "Reversing Rule (e.g., 'start')",
+      anniversary: "Loop reversed counter-clockwise (s-t-a-t)",
+      simplified: "Standard stroke retained (s-t-a-r-t)",
     }
+  ];
+
+  let currentEdition = "anniversary";
+
+  function renderData() {
+    const textCol = document.getElementById("textColumn");
+    const stenoCol = document.getElementById("shorthandColumn");
+    
+    textCol.innerHTML = "";
+    stenoCol.innerHTML = "";
+
+    shorthandData.forEach(item => {
+      // Render English Text Block
+      const textRow = document.createElement("div");
+      textRow.className = "entry-row";
+      textRow.textContent = item.text;
+      textCol.appendChild(textRow);
+
+      // Render Shorthand Block based on selected edition
+      const stenoRow = document.createElement("div");
+      stenoRow.className = "entry-row shorthand-container";
+
+      const strokeContent = currentEdition === "anniversary" ? item.anniversary : item.simplified;
+      const imgSrc = currentEdition === "anniversary" ? item.anniversaryImg : item.simplifiedImg;
+
+      if (imgSrc) {
+        const img = document.createElement("img");
+        img.src = imgSrc;
+        img.alt = strokeContent;
+        img.className = "shorthand-img";
+        stenoRow.appendChild(img);
+      } else {
+        stenoRow.textContent = strokeContent;
+      }
+
+      stenoCol.appendChild(stenoRow);
+    });
+  }
+
+  function setEdition(edition) {
+    currentEdition = edition;
+    
+    // Update button states
+    const buttons = document.querySelectorAll("#editionToggle button");
+    buttons.forEach(btn => {
+      btn.classList.toggle("active", btn.textContent.toLowerCase() === edition);
+    });
+
+    // Update label header
+    document.getElementById("activeEditionLabel").textContent = 
+      edition === "anniversary" ? "Anniversary Edition" : "Simplified Edition";
+
+    renderData();
+  }
+
+  // Initial load execution
+  renderData();
 </script>
 
 </body>
