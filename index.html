@@ -3,35 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gregg Shorthand Converter</title>
+<title>Gregg Shorthand Translator</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"
-        type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
     body {
         font-family: Arial, sans-serif;
-        background: #f5f5f5;
         margin: 0;
-        padding: 40px;
+        padding: 20px;
+        background: #f5f5f5;
     }
 
     h1 {
-        text-align: center;
+        margin-top: 0;
     }
 
-    .buttons {
-        text-align: center;
-        margin: 20px 0;
+    textarea {
+        width: 100%;
+        height: 120px;
+        font-size: 18px;
+        padding: 12px;
+        box-sizing: border-box;
+        resize: vertical;
+    }
+
+    .controls {
+        margin: 15px 0;
     }
 
     button {
-        padding: 10px 20px;
-        margin: 5px;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
+        padding: 10px 18px;
+        margin-right: 8px;
         cursor: pointer;
+        border: 1px solid #aaa;
+        background: white;
+        border-radius: 6px;
     }
 
     button.active {
@@ -39,602 +46,926 @@
         color: white;
     }
 
-    textarea {
-        display: block;
-        width: 90%;
-        max-width: 1100px;
-        height: 100px;
-        margin: auto;
-        padding: 15px;
-        font-size: 18px;
-        border: 2px solid #222;
-        border-radius: 10px;
-        resize: vertical;
+    #status {
+        margin: 10px 0;
+        color: #666;
     }
 
     #results {
-        width: 90%;
-        max-width: 1100px;
-        margin: 30px auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: flex-start;
     }
 
     .card {
         background: white;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        padding: 15px;
-        min-height: 90px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.08);
-        display: flex;
-        align-items: center;
-        gap: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 8px;
+        min-width: 90px;
     }
 
     .word {
-        width: 180px;
         font-weight: bold;
-        font-size: 18px;
+        text-align: center;
+        margin-bottom: 5px;
     }
 
     .source {
-        font-size: 12px;
-        color: #777;
-        margin-top: 5px;
-        font-weight: normal;
+        font-size: 11px;
+        color: #888;
+        text-align: center;
+        margin-top: 4px;
     }
 
     .outline {
-        position: relative;
         width: 365px;
         height: 100px;
         overflow: hidden;
-        background: white;
-        flex-shrink: 0;
+        position: relative;
+        background: #fff;
     }
 
     .outline img {
         position: absolute;
-        max-width: none;
         display: block;
+        visibility: hidden;
+        max-width: none;
     }
 
-    .error {
+    .missing {
+        width: 365px;
+        height: 100px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         color: #999;
-        font-size: 14px;
+        font-size: 13px;
+        background: #fafafa;
     }
 </style>
 </head>
 
 <body>
 
-<h1>Gregg Shorthand Converter</h1>
-
-<div class="buttons">
-    <button id="annBtn" class="active">Anniversary</button>
-    <button id="simpBtn">Simplified</button>
-</div>
+<h1>Gregg Shorthand Translator</h1>
 
 <textarea id="input" placeholder="Type English text here..."></textarea>
 
+<div class="controls">
+    <button id="anniversaryBtn" class="active">Anniversary</button>
+    <button id="simplifiedBtn">Simplified</button>
+</div>
+
+<div id="status">Loading dictionaries...</div>
 <div id="results"></div>
 
-<script type="module">
-
-import * as pdfjsLib from
-"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+<script>
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 
 /* =========================================================
    SETTINGS
 ========================================================= */
 
-const PDF_FILE = "Gregg Shorthand Manual (1929) (1).pdf";
+const DICTIONARY_BASE =
+    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
 
-const DICTIONARY = {
-    Anniversary:
-    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Anniversary/reference.json",
+const BOOK_PDF =
+    "Gregg%20Shorthand%20Manual%20%281929%29%20%281%29.pdf";
 
-    Simplified:
-    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Simplified/reference.json"
+/*
+   Anniversary phrase list discovered from the
+   NPTprogrammer GreggShorthandStuff repository.
+
+   This is used as the phrase-detection source.
+*/
+const ANNIVERSARY_PHRASE_PDF =
+    "https://raw.githubusercontent.com/NPTprogrammer/GreggShorthandStuff/main/GREGG_ANNI_Phrases_List.pdf";
+
+
+const IMG_WIDTH = 1281;
+const DISPLAY_WIDTH = 365;
+const DISPLAY_HEIGHT = 100;
+const OFFSET = 5;
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let currentSeries = "Anniversary";
+
+let dictionaries = {
+    Anniversary: null,
+    Simplified: null
 };
 
-let currentEdition = "Anniversary";
+let phraseDictionary = [];
 
-let dictionary = {
-    Anniversary: [],
-    Simplified: []
-};
+let bookPdf = null;
+let phrasePdf = null;
 
-let pdf = null;
+let bookTextCache = {};
+let phraseTextCache = {};
+
+let loading = false;
 
 
 /* =========================================================
-   PDF LOADING
+   BASIC NORMALIZATION
 ========================================================= */
 
-async function loadPDF() {
-
-    try {
-
-        pdf = await pdfjsLib.getDocument(PDF_FILE).promise;
-
-        console.log("1929 Gregg Manual loaded.");
-
-    } catch (error) {
-
-        console.error("PDF could not be loaded:", error);
-
-    }
+function normalize(text) {
+    return text
+        .toLowerCase()
+        .replace(/[“”‘’]/g, "'")
+        .replace(/[^\w\s'-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
-
-
-/* =========================================================
-   DICTIONARY LOADING
-========================================================= */
-
-async function loadDictionary(edition) {
-
-    if (dictionary[edition].length > 0)
-        return;
-
-    try {
-
-        const response = await fetch(
-            DICTIONARY[edition] + "?v=" + Date.now()
-        );
-
-        dictionary[edition] = await response.json();
-
-    } catch (error) {
-
-        console.error("Dictionary error:", error);
-
-    }
-}
-
-
-/* =========================================================
-   NORMALIZE WORD
-========================================================= */
 
 function cleanWord(word) {
-
     return word
         .toLowerCase()
-        .replace(/^[^a-z0-9']+|[^a-z0-9']+$/gi, "");
-
+        .replace(/^[^a-z0-9']+/i, "")
+        .replace(/[^a-z0-9']+$/i, "");
 }
 
 
 /* =========================================================
-   DICTIONARY LOOKUP
+   LOAD GREGGDICT
 ========================================================= */
 
-function dictionaryLookup(word) {
+async function loadDictionary(series) {
 
-    const clean = cleanWord(word);
+    const url =
+        DICTIONARY_BASE +
+        series +
+        "/reference.json?cb=" +
+        Date.now();
 
-    return dictionary[currentEdition].find(
-        item => item.t.toLowerCase() === clean
-    );
+    const response = await fetch(url);
 
-}
-
-
-/* =========================================================
-   BOOK PHRASES
-=========================================================
-
-   IMPORTANT:
-
-   These are taken from the actual 1929 manual.
-
-   "Dear Sir" = page 26
-   "I am"     = page 31
-
-========================================================= */
-
-const BOOK_PHRASES = {
-
-    "dear sir": {
-        page: 26,
-
-        // normalized coordinates
-        // around the "Dear Sir" outline
-        crop: {
-            x: 0.66,
-            y: 0.65,
-            width: 0.23,
-            height: 0.15
-        },
-
-        source: "1929 Manual — Business Abbreviation"
-    },
-
-    "i am": {
-        page: 31,
-
-        // normalized coordinates
-        // around the "I am" outline
-        crop: {
-            x: 0.23,
-            y: 0.77,
-            width: 0.22,
-            height: 0.12
-        },
-
-        source: "1929 Manual — Phrase Drill"
+    if (!response.ok) {
+        throw new Error("Could not load " + series + " dictionary.");
     }
 
-};
+    dictionaries[series] = await response.json();
+}
 
 
 /* =========================================================
-   RENDER BOOK PHRASE
+   GREGGDICT LOOKUP
 ========================================================= */
 
-async function createBookOutline(entry) {
+function findDictionaryWord(word) {
 
-    if (!pdf)
-        return null;
+    const dictionary = dictionaries[currentSeries];
+
+    if (!dictionary) return null;
+
+    const target = cleanWord(word);
+
+    for (const page of dictionary) {
+
+        if (!page.words) continue;
+
+        for (const entry of page.words) {
+
+            if (cleanWord(entry.t) === target) {
+
+                return {
+                    page: page.page,
+                    x: entry.x,
+                    y: entry.y,
+                    term: entry.t
+                };
+
+            }
+        }
+    }
+
+    return null;
+}
+
+
+/* =========================================================
+   LOAD USER'S 1929 MANUAL
+========================================================= */
+
+async function loadBook() {
 
     try {
 
-        const page = await pdf.getPage(entry.page);
-
-        /*
-            Render the PDF page to an offscreen canvas.
-        */
-
-        const viewport = page.getViewport({
-            scale: 2
-        });
-
-        const canvas = document.createElement("canvas");
-
-        const context = canvas.getContext("2d");
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        await page.render({
-            canvasContext: context,
-            viewport: viewport
+        bookPdf = await pdfjsLib.getDocument({
+            url: BOOK_PDF
         }).promise;
 
-
-        /*
-            Convert normalized coordinates
-            into actual pixel coordinates.
-        */
-
-        const x = entry.crop.x * canvas.width;
-        const y = entry.crop.y * canvas.height;
-
-        const width = entry.crop.width * canvas.width;
-        const height = entry.crop.height * canvas.height;
-
-
-        /*
-            Create cropped canvas.
-        */
-
-        const cropCanvas = document.createElement("canvas");
-
-        cropCanvas.width = width;
-        cropCanvas.height = height;
-
-        const cropContext = cropCanvas.getContext("2d");
-
-        cropContext.drawImage(
-            canvas,
-            x,
-            y,
-            width,
-            height,
-            0,
-            0,
-            width,
-            height
-        );
-
-
-        return cropCanvas.toDataURL("image/png");
+        console.log("1929 manual loaded:", bookPdf.numPages);
 
     } catch (error) {
 
-        console.error("Book rendering error:", error);
+        console.error("Manual PDF could not be loaded:", error);
 
-        return null;
-
+        bookPdf = null;
     }
-
 }
 
 
 /* =========================================================
-   CREATE DICTIONARY IMAGE
+   LOAD ANNIVERSARY PHRASE LIST
 ========================================================= */
 
-function createDictionaryOutline(entry) {
+async function loadPhrasePdf() {
 
-    if (!entry)
+    try {
+
+        phrasePdf = await pdfjsLib.getDocument({
+            url: ANNIVERSARY_PHRASE_PDF
+        }).promise;
+
+        console.log(
+            "Anniversary phrase list loaded:",
+            phrasePdf.numPages,
+            "pages"
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Phrase list could not be loaded.",
+            error
+        );
+
+        phrasePdf = null;
+    }
+}
+
+
+/* =========================================================
+   EXTRACT PDF TEXT
+========================================================= */
+
+async function getPageText(pdf, pageNumber, cache) {
+
+    if (cache[pageNumber]) {
+        return cache[pageNumber];
+    }
+
+    const page = await pdf.getPage(pageNumber);
+
+    const content = await page.getTextContent();
+
+    const items = content.items || [];
+
+    const words = items.map(item => ({
+        text: item.str || "",
+        x: item.transform[4],
+        y: item.transform[5],
+        width: item.width || 0,
+        height: item.height || 0
+    }));
+
+    cache[pageNumber] = words;
+
+    return words;
+}
+
+
+/* =========================================================
+   BUILD PHRASE DICTIONARY FROM PHRASE PDF
+========================================================= */
+
+async function buildPhraseDictionary() {
+
+    phraseDictionary = [];
+
+    if (!phrasePdf) return;
+
+    /*
+       Read every page of the Anniversary phrase list.
+
+       We keep textual lines that look like actual phrases.
+    */
+
+    for (let pageNumber = 1;
+         pageNumber <= phrasePdf.numPages;
+         pageNumber++) {
+
+        const items =
+            await getPageText(
+                phrasePdf,
+                pageNumber,
+                phraseTextCache
+            );
+
+        const lines = {};
+
+        for (const item of items) {
+
+            const text = item.text.trim();
+
+            if (!text) continue;
+
+            /*
+               Group nearby text items by approximate Y position.
+            */
+
+            const key = Math.round(item.y / 3) * 3;
+
+            if (!lines[key]) {
+                lines[key] = [];
+            }
+
+            lines[key].push(item);
+        }
+
+        for (const key of Object.keys(lines)) {
+
+            const line = lines[key]
+                .sort((a, b) => a.x - b.x)
+                .map(x => x.text)
+                .join(" ")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            const normalized = normalize(line);
+
+            if (!normalized) continue;
+
+            const words = normalized.split(" ");
+
+            /*
+               Ignore very short entries and obvious headings.
+            */
+
+            if (
+                words.length >= 2 &&
+                words.length <= 12 &&
+                /[a-z]/i.test(normalized)
+            ) {
+
+                phraseDictionary.push({
+                    phrase: normalized,
+                    page: pageNumber
+                });
+
+            }
+        }
+    }
+
+    /*
+       Remove duplicates.
+    */
+
+    const unique = new Map();
+
+    for (const item of phraseDictionary) {
+        unique.set(item.phrase, item);
+    }
+
+    phraseDictionary = [...unique.values()];
+
+    /*
+       Longest phrases first.
+    */
+
+    phraseDictionary.sort((a, b) => {
+
+        const aw = a.phrase.split(" ").length;
+        const bw = b.phrase.split(" ").length;
+
+        return bw - aw;
+
+    });
+
+    console.log(
+        "Phrase dictionary entries:",
+        phraseDictionary.length
+    );
+}
+
+
+/* =========================================================
+   PHRASE LOOKUP
+========================================================= */
+
+function findPhrase(words, startIndex) {
+
+    if (!phraseDictionary.length) {
         return null;
+    }
 
-    const pageNumber =
-        String(entry.page).padStart(3, "0");
+    /*
+       Try the longest possible phrase first.
+    */
 
-    const imageURL =
-        `https://raw.githubusercontent.com/richyliu/greggdict/master/assets/${currentEdition}/pages/${pageNumber}.png`;
+    const maxWords = Math.min(
+        12,
+        words.length - startIndex
+    );
+
+    for (let count = maxWords; count >= 2; count--) {
+
+        const candidate =
+            words
+                .slice(startIndex, startIndex + count)
+                .join(" ");
+
+        const found =
+            phraseDictionary.find(
+                item => item.phrase === candidate
+            );
+
+        if (found) {
+            return found;
+        }
+    }
+
+    return null;
+}
 
 
-    const DISPLAY_WIDTH = 365;
-    const DISPLAY_HEIGHT = 100;
-    const OFFSET = 5;
-    const IMG_WIDTH = 1281;
+/* =========================================================
+   FIND TEXT ON A BOOK PAGE
+========================================================= */
+
+async function findTextOnBookPage(pageNumber, phrase) {
+
+    if (!bookPdf) return null;
+
+    const items =
+        await getPageText(
+            bookPdf,
+            pageNumber,
+            bookTextCache
+        );
+
+    const targetWords =
+        normalize(phrase).split(" ");
+
+    /*
+       First try to locate the phrase as a group.
+    */
+
+    for (let i = 0; i < items.length; i++) {
+
+        let collected = "";
+        let matched = [];
+
+        for (
+            let j = i;
+            j < Math.min(i + targetWords.length + 3, items.length);
+            j++
+        ) {
+
+            const text = normalize(items[j].text);
+
+            if (!text) continue;
+
+            collected =
+                (collected + " " + text).trim();
+
+            matched.push(items[j]);
+
+            const normalizedCollected =
+                collected.replace(/\s+/g, " ");
+
+            if (normalizedCollected ===
+                targetWords.join(" ")) {
+
+                return {
+                    items: matched
+                };
+            }
+
+            /*
+               OCR sometimes joins words.
+               Example: "lam" for "I am".
+            */
+
+            if (
+                phrase === "i am" &&
+                normalizedCollected === "lam"
+            ) {
+
+                return {
+                    items: matched
+                };
+            }
+        }
+    }
+
+    return null;
+}
 
 
-    const wrapper = document.createElement("div");
+/* =========================================================
+   FIND A GOOD OUTLINE AREA
+========================================================= */
 
-    wrapper.className = "outline";
+function getCropFromMatch(match) {
+
+    if (!match || !match.items.length) {
+        return null;
+    }
+
+    const first = match.items[0];
+
+    const last =
+        match.items[match.items.length - 1];
+
+    /*
+       The shorthand outline is generally
+       immediately below the printed phrase.
+    */
+
+    const x =
+        Math.min(first.x, last.x);
+
+    const right =
+        Math.max(
+            first.x + first.width,
+            last.x + last.width
+        );
+
+    const width =
+        Math.max(60, right - x);
+
+    const centerX =
+        x + width / 2;
+
+    const y =
+        Math.min(first.y, last.y);
+
+    return {
+        x: centerX,
+        y: y + 28
+    };
+}
 
 
-    const img = document.createElement("img");
+/* =========================================================
+   RENDER BOOK OUTLINE
+========================================================= */
 
-    img.src = imageURL + "?v=" + Date.now();
+async function renderBookPhrase(
+    phrase,
+    phraseInfo,
+    container
+) {
 
-    img.style.width = IMG_WIDTH + "px";
+    if (!bookPdf || !phraseInfo) {
+        showMissing(container, "Phrase not found");
+        return;
+    }
+
+    /*
+       First try the phrase-list page.
+
+       Then search the 1929 manual for the same phrase.
+    */
+
+    let match = null;
+    let foundPage = null;
+
+    /*
+       Search all manual pages only when needed.
+       Results are cached.
+    */
+
+    for (let p = 1; p <= bookPdf.numPages; p++) {
+
+        match =
+            await findTextOnBookPage(
+                p,
+                phrase
+            );
+
+        if (match) {
+
+            foundPage = p;
+            break;
+
+        }
+    }
+
+    if (!match) {
+
+        showMissing(
+            container,
+            "Phrase outline not located"
+        );
+
+        return;
+    }
+
+    const page =
+        await bookPdf.getPage(foundPage);
+
+    const viewport =
+        page.getViewport({
+            scale: 1
+        });
+
+    const canvas =
+        document.createElement("canvas");
+
+    canvas.width =
+        viewport.width;
+
+    canvas.height =
+        viewport.height;
+
+    const context =
+        canvas.getContext("2d");
+
+    await page.render({
+        canvasContext: context,
+        viewport: viewport
+    }).promise;
+
+    const crop =
+        getCropFromMatch(match);
+
+    if (!crop) {
+        showMissing(container, "No crop");
+        return;
+    }
+
+    /*
+       Approximate crop region around the shorthand
+       underneath the printed phrase.
+    */
+
+    const cropWidth = 140;
+    const cropHeight = 65;
+
+    let sx =
+        crop.x - cropWidth / 2;
+
+    let sy =
+        viewport.height - crop.y - cropHeight;
+
+    sx = Math.max(
+        0,
+        Math.min(
+            sx,
+            canvas.width - cropWidth
+        )
+    );
+
+    sy = Math.max(
+        0,
+        Math.min(
+            sy,
+            canvas.height - cropHeight
+        )
+    );
+
+    const cropped =
+        document.createElement("canvas");
+
+    cropped.width = cropWidth;
+    cropped.height = cropHeight;
+
+    const ctx =
+        cropped.getContext("2d");
+
+    ctx.drawImage(
+        canvas,
+        sx,
+        sy,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        cropWidth,
+        cropHeight
+    );
+
+    const img =
+        document.createElement("img");
+
+    img.src =
+        cropped.toDataURL("image/png");
+
+    img.style.width = "365px";
+    img.style.height = "100px";
+    img.style.objectFit = "contain";
+    img.style.visibility = "visible";
+
+    container.innerHTML = "";
+    container.appendChild(img);
+}
 
 
-    img.onload = function() {
+/* =========================================================
+   RENDER NORMAL DICTIONARY WORD
+========================================================= */
+
+function renderDictionaryWord(
+    entry,
+    container
+) {
+
+    if (!entry) {
+
+        showMissing(
+            container,
+            "Not in dictionary"
+        );
+
+        return;
+    }
+
+    const img =
+        document.createElement("img");
+
+    img.src =
+        DICTIONARY_BASE +
+        currentSeries +
+        "/pages/" +
+        String(entry.page).padStart(3, "0") +
+        ".png?cb=" +
+        Date.now();
+
+    img.onload = function () {
 
         const scale =
-            IMG_WIDTH / img.naturalWidth;
+            IMG_WIDTH /
+            img.naturalWidth;
+
+        img.style.width =
+            IMG_WIDTH + "px";
 
         img.style.left =
             -(entry.x * scale - OFFSET) + "px";
 
         img.style.top =
-            -(entry.y * scale - DISPLAY_HEIGHT / 2) + "px";
+            -(
+                entry.y * scale -
+                DISPLAY_HEIGHT / 2
+            ) + "px";
 
+        img.style.visibility =
+            "visible";
     };
 
-
-    wrapper.appendChild(img);
-
-    return wrapper;
-
+    container.innerHTML = "";
+    container.appendChild(img);
 }
 
 
 /* =========================================================
-   MATCH PHRASES FIRST
+   MISSING DISPLAY
 ========================================================= */
 
-function tokenize(text) {
+function showMissing(container, text) {
 
-    return text
-        .trim()
-        .split(/\s+/)
-        .map(cleanWord)
-        .filter(Boolean);
-
-}
-
-
-function findMatches(words) {
-
-    const results = [];
-
-    let i = 0;
-
-
-    while (i < words.length) {
-
-        let matched = false;
-
-
-        /*
-            Check longest phrases first.
-
-            Example:
-
-            "dear sir"
-
-            gets matched before:
-
-            "dear"
-            "sir"
-        */
-
-        for (let length = 4; length >= 2; length--) {
-
-            const phrase =
-                words
-                    .slice(i, i + length)
-                    .join(" ");
-
-
-            if (BOOK_PHRASES[phrase]) {
-
-                results.push({
-                    type: "book",
-                    text: phrase,
-                    entry: BOOK_PHRASES[phrase]
-                });
-
-                i += length;
-
-                matched = true;
-
-                break;
-            }
-
-        }
-
-
-        if (!matched) {
-
-            results.push({
-                type: "word",
-                text: words[i]
-            });
-
-            i++;
-
-        }
-
-    }
-
-    return results;
-
+    container.innerHTML =
+        `<div class="missing">${text}</div>`;
 }
 
 
 /* =========================================================
-   DISPLAY RESULTS
+   PROCESS INPUT
 ========================================================= */
 
-async function convert() {
+async function translate() {
 
-    const text =
-        document.getElementById("input").value;
+    if (loading) return;
+
+    const input =
+        document.getElementById("input")
+            .value
+            .trim();
 
     const results =
         document.getElementById("results");
 
+    if (!input) {
+
+        results.innerHTML = "";
+        return;
+    }
+
+    loading = true;
+
     results.innerHTML = "";
 
-
-    if (!text.trim())
-        return;
-
-
-    await loadDictionary(currentEdition);
-
-
     const words =
-        tokenize(text);
+        normalize(input).split(" ");
+
+    const line =
+        document.createElement("div");
+
+    line.className = "line";
+
+    let i = 0;
+
+    while (i < words.length) {
+
+        /*
+           PHRASE FIRST
+        */
+
+        let phrase =
+            currentSeries === "Anniversary"
+                ? findPhrase(words, i)
+                : null;
+
+        if (phrase) {
+
+            const phraseWords =
+                phrase.phrase.split(" ");
+
+            const card =
+                document.createElement("div");
+
+            card.className = "card";
+
+            card.innerHTML = `
+                <div class="word">
+                    ${phraseWords.join(" ")}
+                </div>
+                <div class="outline"></div>
+                <div class="source">
+                    Anniversary phrase
+                </div>
+            `;
+
+            line.appendChild(card);
+
+            const outline =
+                card.querySelector(".outline");
+
+            /*
+               Search the 1929 manual and display
+               the actual shorthand phrase.
+            */
+
+            await renderBookPhrase(
+                phrase.phrase,
+                phrase,
+                outline
+            );
+
+            i += phraseWords.length;
+
+            continue;
+        }
 
 
-    const matches =
-        findMatches(words);
+        /*
+           NORMAL WORD
+        */
 
-
-    for (const item of matches) {
+        const original =
+            words[i];
 
         const card =
             document.createElement("div");
 
         card.className = "card";
 
-
-        const label =
-            document.createElement("div");
-
-        label.className = "word";
-
-        label.innerHTML = `
-            ${item.text}
-            <div class="source"></div>
+        card.innerHTML = `
+            <div class="word">${original}</div>
+            <div class="outline"></div>
+            <div class="source">
+                ${currentSeries} dictionary
+            </div>
         `;
 
+        line.appendChild(card);
 
-        const source =
-            label.querySelector(".source");
+        const outline =
+            card.querySelector(".outline");
 
+        const entry =
+            findDictionaryWord(original);
 
-        card.appendChild(label);
+        renderDictionaryWord(
+            entry,
+            outline
+        );
 
-
-        /*
-            BOOK PHRASE
-        */
-
-        if (item.type === "book") {
-
-            source.textContent =
-                item.entry.source;
-
-
-            const image =
-                await createBookOutline(item.entry);
-
-
-            if (image) {
-
-                const imageElement =
-                    document.createElement("img");
-
-                imageElement.src = image;
-
-                imageElement.style.width = "365px";
-
-                imageElement.style.height = "100px";
-
-                imageElement.style.objectFit = "contain";
-
-                card.appendChild(imageElement);
-
-            } else {
-
-                source.textContent +=
-                    " — image unavailable";
-
-            }
-
-        }
-
-
-        /*
-            NORMAL DICTIONARY WORD
-        */
-
-        else {
-
-            const entry =
-                dictionaryLookup(item.text);
-
-
-            if (entry) {
-
-                source.textContent =
-                    currentEdition + " Dictionary";
-
-
-                const outline =
-                    createDictionaryOutline(entry);
-
-
-                card.appendChild(outline);
-
-            } else {
-
-                source.textContent =
-                    "Not found";
-
-                const message =
-                    document.createElement("div");
-
-                message.className = "error";
-
-                message.textContent =
-                    "No outline found";
-
-                card.appendChild(message);
-
-            }
-
-        }
-
-
-        results.appendChild(card);
-
+        i++;
     }
 
+    results.appendChild(line);
+
+    loading = false;
 }
 
 
@@ -651,55 +982,95 @@ document
         clearTimeout(typingTimer);
 
         typingTimer =
-            setTimeout(convert, 250);
-
+            setTimeout(
+                translate,
+                500
+            );
     });
 
 
 document
-    .getElementById("annBtn")
+    .getElementById("anniversaryBtn")
     .addEventListener("click", async () => {
 
-        currentEdition = "Anniversary";
+        currentSeries = "Anniversary";
 
         document
-            .getElementById("annBtn")
+            .getElementById("anniversaryBtn")
             .classList.add("active");
 
         document
-            .getElementById("simpBtn")
+            .getElementById("simplifiedBtn")
             .classList.remove("active");
 
-        await convert();
-
+        await translate();
     });
 
 
 document
-    .getElementById("simpBtn")
+    .getElementById("simplifiedBtn")
     .addEventListener("click", async () => {
 
-        currentEdition = "Simplified";
+        currentSeries = "Simplified";
 
         document
-            .getElementById("simpBtn")
+            .getElementById("simplifiedBtn")
             .classList.add("active");
 
         document
-            .getElementById("annBtn")
+            .getElementById("anniversaryBtn")
             .classList.remove("active");
 
-        await convert();
-
+        await translate();
     });
 
 
 /* =========================================================
-   START
+   INITIALIZE
 ========================================================= */
 
-loadPDF();
-loadDictionary("Anniversary");
+(async function () {
+
+    const status =
+        document.getElementById("status");
+
+    try {
+
+        status.textContent =
+            "Loading Gregg dictionaries...";
+
+        await Promise.all([
+            loadDictionary("Anniversary"),
+            loadDictionary("Simplified")
+        ]);
+
+        status.textContent =
+            "Loading Anniversary phrase dictionary...";
+
+        await loadPhrasePdf();
+
+        if (phrasePdf) {
+            await buildPhraseDictionary();
+        }
+
+        status.textContent =
+            "Loading 1929 Anniversary manual...";
+
+        await loadBook();
+
+        status.textContent =
+            "Ready.";
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+            "Some dictionary data could not be loaded.";
+
+    }
+
+})();
 
 </script>
 
