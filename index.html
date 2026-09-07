@@ -7,140 +7,134 @@
 <title>Gregg Shorthand Converter</title>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
 
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        color: #222;
-    }
+* {
+    box-sizing: border-box;
+}
 
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 25px;
-    }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    color: #222;
+}
 
-    h1 {
-        text-align: center;
-        margin-bottom: 20px;
-    }
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 25px;
+}
 
-    .controls {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-    }
+h1 {
+    text-align: center;
+}
 
-    button {
-        padding: 10px 18px;
-        border: 1px solid #aaa;
-        border-radius: 8px;
-        background: white;
-        cursor: pointer;
-        font-size: 15px;
-    }
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+}
 
-    button.active {
-        background: #222;
-        color: white;
-    }
+button {
+    padding: 10px 18px;
+    border: 1px solid #aaa;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 15px;
+}
 
-    textarea {
-        width: 100%;
-        min-height: 130px;
-        resize: vertical;
-        padding: 15px;
-        font-size: 18px;
-        border: 1px solid #bbb;
-        border-radius: 10px;
-        outline: none;
-    }
+button.active {
+    background: #222;
+    color: white;
+}
 
-    .output-title {
-        margin-top: 25px;
-        margin-bottom: 10px;
-        font-size: 20px;
-        font-weight: bold;
-    }
+textarea {
+    width: 100%;
+    min-height: 130px;
+    padding: 15px;
+    font-size: 18px;
+    border: 1px solid #bbb;
+    border-radius: 10px;
+    resize: vertical;
+}
 
-    #output {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        min-height: 150px;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        gap: 10px;
-    }
+.output-title {
+    margin-top: 25px;
+    margin-bottom: 10px;
+    font-size: 20px;
+    font-weight: bold;
+}
 
-    .word-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin-bottom: 10px;
-    }
+#output {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 150px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+}
 
-    .word-label {
-        font-size: 12px;
-        color: #777;
-        margin-bottom: 3px;
-    }
+.word-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-    /*
-       Richy Liu's original dictionary uses:
-       small display = 365 x 100
-       source image width = 1281
-    */
+.word-label {
+    font-size: 12px;
+    color: #777;
+    margin-bottom: 4px;
+}
 
-    .gregg-box {
-        width: 365px;
-        height: 100px;
-        overflow: hidden;
-        position: relative;
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-    }
+/*
+    EXACTLY like Richy Liu's small ImageDisplay:
 
-    .gregg-page {
-        position: absolute;
-        width: 1281px;
-        max-width: none;
-        height: auto;
-        user-select: none;
-        pointer-events: none;
-    }
+    width  = 365px
+    height = 100px
+    offset = 5px
+*/
 
-    .unknown {
-        width: auto;
-        height: 100px;
-        min-width: 80px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px dashed #aaa;
-        border-radius: 5px;
-        color: #888;
-        font-size: 14px;
-    }
+.gregg-box {
+    width: 365px;
+    height: 100px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #000;
+    background: white;
+}
 
-    .status {
-        text-align: center;
-        color: #777;
-        margin-top: 15px;
-    }
+.gregg-page {
+    position: absolute;
+    max-width: none;
+    height: auto;
+    visibility: hidden;
+}
 
-    .error {
-        color: #b00020;
-    }
+.unknown {
+    height: 100px;
+    min-width: 100px;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px dashed #aaa;
+    color: #888;
+}
+
+.status {
+    width: 100%;
+    text-align: center;
+    color: #777;
+}
+
+.error {
+    color: #b00020;
+}
+
 </style>
 </head>
 
@@ -148,60 +142,78 @@
 
 <div class="container">
 
-    <h1>Gregg Shorthand Converter</h1>
+<h1>Gregg Shorthand Converter</h1>
 
-    <div class="controls">
-        <button id="anniversaryBtn" class="active">
-            Gregg Anniversary
-        </button>
+<div class="controls">
 
-        <button id="simplifiedBtn">
-            Gregg Simplified
-        </button>
-    </div>
+<button id="anniversaryBtn" class="active">
+Gregg Anniversary
+</button>
 
-    <textarea
-        id="inputText"
-        placeholder="Type English text here...
-
-Example:
-The sister will tell him."
-    ></textarea>
-
-    <div class="output-title">
-        Gregg Outlines
-    </div>
-
-    <div id="output">
-        <div class="status">
-            Type something above.
-        </div>
-    </div>
+<button id="simplifiedBtn">
+Gregg Simplified
+</button>
 
 </div>
 
+<textarea
+id="inputText"
+placeholder="Type English text here...
+
+Example:
+The sister will tell him."
+></textarea>
+
+<div class="output-title">
+Gregg Outlines
+</div>
+
+<div id="output">
+
+<div class="status">
+Type something above.
+</div>
+
+</div>
+
+</div>
+
+
 <script>
 
+/*
+=========================================================
+DICTIONARY SOURCES
+=========================================================
+*/
+
 const REPO_BASE =
-    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
+"https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
 
 const dictionaries = {
+
     Anniversary: {
+
         reference:
-            REPO_BASE + "Anniversary/reference.json",
+        REPO_BASE + "Anniversary/reference.json",
 
         pages:
-            REPO_BASE + "Anniversary/pages/"
+        REPO_BASE + "Anniversary/pages/"
+
     },
 
     Simplified: {
+
         reference:
-            REPO_BASE + "Simplified/reference.json",
+        REPO_BASE + "Simplified/reference.json",
 
         pages:
-            REPO_BASE + "Simplified/pages/"
+        REPO_BASE + "Simplified/pages/"
+
     }
+
 };
+
 
 let currentDictionary = "Anniversary";
 
@@ -218,81 +230,71 @@ LOAD DICTIONARY
 
 async function loadDictionary(type) {
 
-    if (loadingDictionary) return;
-
     loadingDictionary = true;
 
-    showStatus("Loading " + type + " dictionary...");
+    showStatus(
+        "Loading " + type + " dictionary..."
+    );
 
     try {
 
         const response =
-            await fetch(dictionaries[type].reference);
+        await fetch(
+            dictionaries[type].reference
+        );
 
         if (!response.ok) {
+
             throw new Error(
-                "Could not load dictionary reference."
+                "Dictionary could not be loaded."
             );
+
         }
 
-        const data = await response.json();
+        const data =
+        await response.json();
 
         dictionary = {};
 
-        /*
-        Richy Liu's reference file is:
 
-        [
-            {
-                page: "001",
-                words: [
-                    {
-                        t: "word",
-                        x: 123,
-                        y: 456
-                    }
-                ]
-            }
-        ]
+        /*
+        Build exact word lookup.
+
+        Example:
+
+        "tell" -> tell entry
+
+        It will NOT match:
+        teller
+        telling
+        tellurium
         */
 
         data.forEach(pageData => {
 
-            const page = pageData.page;
-
             pageData.words.forEach(entry => {
 
-                const word =
-                    entry.t.toLowerCase().trim();
+                const key =
+                entry.t
+                    .toLowerCase()
+                    .trim();
 
-                /*
-                Exact lookup.
+                dictionary[key] = {
 
-                This means:
+                    word: entry.t,
 
-                tell
+                    page: pageData.page,
 
-                will NOT match:
+                    x: entry.x,
 
-                teller
-                telling
-                tellurium
-                */
+                    y: entry.y
 
-                if (!dictionary[word]) {
-
-                    dictionary[word] = {
-                        word: entry.t,
-                        page: page,
-                        x: entry.x,
-                        y: entry.y
-                    };
-
-                }
+                };
 
             });
 
         });
+
 
         currentDictionary = type;
 
@@ -300,51 +302,37 @@ async function loadDictionary(type) {
 
         renderText();
 
-    } catch (error) {
+    }
+
+    catch(error) {
 
         console.error(error);
 
         loadingDictionary = false;
 
         showStatus(
-            "Unable to load the " +
-            type +
-            " dictionary.",
+            "Could not load dictionary.",
             true
         );
+
     }
+
 }
 
 
 /*
 =========================================================
-DISPLAY STATUS
+STATUS
 =========================================================
 */
 
 function showStatus(message, error = false) {
 
-    const output =
-        document.getElementById("output");
+    document.getElementById("output").innerHTML =
 
-    output.innerHTML =
-        `<div class="status ${error ? "error" : ""}">
-            ${message}
-        </div>`;
-}
-
-
-/*
-=========================================================
-NORMALIZE WORD
-=========================================================
-*/
-
-function normalizeWord(word) {
-
-    return word
-        .toLowerCase()
-        .trim();
+    `<div class="status ${error ? "error" : ""}">
+        ${message}
+    </div>`;
 
 }
 
@@ -357,63 +345,142 @@ CREATE GREGG IMAGE
 
 function createGreggImage(entry) {
 
-    /*
-    Richy Liu's original ImageDisplay:
-
-        DISPLAY_SIZE_SMALL
-        x = 365
-        y = 100
-
-        IMG_WIDTH = 1281
-
-    The reference coordinates are based on
-    the original dictionary image.
-    */
-
     const box =
-        document.createElement("div");
+    document.createElement("div");
 
     box.className =
-        "gregg-box";
+    "gregg-box";
 
 
     const image =
-        document.createElement("img");
+    document.createElement("img");
 
     image.className =
-        "gregg-page";
+    "gregg-page";
 
-    image.draggable = false;
 
+    /*
+    EXACT PAGE IMAGE FROM RICHY LIU
+    */
 
     image.src =
+
         dictionaries[currentDictionary].pages +
+
         entry.page +
+
         ".png";
 
 
     /*
-    The reference coordinates are on the
-    original 1281px-wide image.
-
-    We position the image so the requested
-    dictionary entry appears inside the
-    365x100 viewing window.
+    Cache breaker just like the original app.
     */
 
-    image.style.left =
-        (182.5 - entry.x) + "px";
+    image.src +=
+        "?cachebreaker=" +
+        encodeURIComponent(
+            entry.word + entry.y
+        );
 
-    image.style.top =
-        (50 - entry.y) + "px";
+
+    /*
+    =====================================================
+    THIS IS THE IMPORTANT PART
+    =====================================================
+
+    Richy Liu's original code does:
+
+        scale = 1281 / naturalWidth
+
+    Then:
+
+        width = 1281
+
+        left = -(x * scale - 5)
+
+        top = -(y * scale - 50)
+
+    We now do exactly that.
+    */
+
+
+    image.onload = function() {
+
+        const IMG_WIDTH = 1281;
+
+        const DISPLAY_WIDTH = 365;
+
+        const DISPLAY_HEIGHT = 100;
+
+        const OFFSET = 5;
+
+
+        /*
+        Calculate the scale from the actual
+        dictionary image.
+        */
+
+        const scale =
+            IMG_WIDTH /
+            image.naturalWidth;
+
+
+        /*
+        Set the image to Richy Liu's
+        1281px display width.
+        */
+
+        image.style.width =
+            IMG_WIDTH + "px";
+
+
+        /*
+        Position horizontally.
+
+        Original:
+
+        left:
+        -(word.x * scale - displaySize.offset)
+        */
+
+        image.style.left =
+
+            -(entry.x * scale - OFFSET)
+            + "px";
+
+
+        /*
+        Position vertically.
+
+        Original:
+
+        top:
+        -(word.y * scale - displaySize.y / 2)
+        */
+
+        image.style.top =
+
+            -(entry.y * scale -
+            DISPLAY_HEIGHT / 2)
+            + "px";
+
+
+        /*
+        NOW show the image.
+        */
+
+        image.style.visibility =
+            "visible";
+
+    };
 
 
     image.onerror = function() {
 
         box.innerHTML =
-            "<div class='unknown'>" +
-            "Image unavailable" +
-            "</div>";
+        `<div class="unknown">
+            Image unavailable
+        </div>`;
 
     };
 
@@ -421,73 +488,79 @@ function createGreggImage(entry) {
     box.appendChild(image);
 
     return box;
+
 }
 
 
 /*
 =========================================================
-CREATE WORD RESULT
+CREATE WORD
 =========================================================
 */
 
 function createWordElement(word) {
 
     const wrapper =
-        document.createElement("div");
+    document.createElement("div");
 
     wrapper.className =
-        "word-container";
+    "word-container";
 
 
     const label =
-        document.createElement("div");
+    document.createElement("div");
 
     label.className =
-        "word-label";
+    "word-label";
 
     label.textContent =
-        word;
+    word;
 
 
     wrapper.appendChild(label);
 
 
-    const normalized =
-        normalizeWord(word);
-
-
     /*
-    EXACT MATCH ONLY
+    EXACT LOOKUP
     */
 
+    const key =
+    word.toLowerCase().trim();
+
+
     const entry =
-        dictionary[normalized];
+    dictionary[key];
 
 
     if (!entry) {
 
         const unknown =
-            document.createElement("div");
+        document.createElement("div");
 
         unknown.className =
-            "unknown";
+        "unknown";
 
         unknown.textContent =
-            "No outline";
+        "No outline";
 
-        wrapper.appendChild(unknown);
+        wrapper.appendChild(
+            unknown
+        );
 
         return wrapper;
+
     }
 
 
     const image =
-        createGreggImage(entry);
+    createGreggImage(entry);
+
 
     wrapper.appendChild(image);
 
 
     return wrapper;
+
 }
 
 
@@ -500,24 +573,31 @@ RENDER TEXT
 function renderText() {
 
     const input =
-        document.getElementById("inputText");
+    document.getElementById(
+        "inputText"
+    );
+
 
     const output =
-        document.getElementById("output");
+    document.getElementById(
+        "output"
+    );
 
 
     const text =
-        input.value.trim();
+    input.value.trim();
 
 
     if (!text) {
 
         output.innerHTML =
-            `<div class="status">
-                Type something above.
-            </div>`;
+
+        `<div class="status">
+            Type something above.
+        </div>`;
 
         return;
+
     }
 
 
@@ -527,10 +607,11 @@ function renderText() {
     ) {
 
         showStatus(
-            "Dictionary is still loading..."
+            "Dictionary is loading..."
         );
 
         return;
+
     }
 
 
@@ -538,37 +619,46 @@ function renderText() {
 
 
     /*
-    Split text into words.
-
-    Punctuation is removed ONLY for the
-    dictionary lookup, while the original
-    word is still displayed as the label.
+    Separate the sentence into words.
     */
 
     const words =
-        text.split(/\s+/);
+    text.split(/\s+/);
 
 
     words.forEach(originalWord => {
 
-        const lookupWord =
-            originalWord
-                .replace(
-                    /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
-                    ""
-                );
+        /*
+        Remove punctuation for lookup.
+
+        Example:
+
+        "tell," -> "tell"
+
+        "sister." -> "sister"
+        */
+
+        const cleanWord =
+        originalWord.replace(
+            /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
+            ""
+        );
 
 
-        if (!lookupWord) {
+        if (!cleanWord) {
             return;
         }
 
 
         const element =
-            createWordElement(lookupWord);
+        createWordElement(
+            cleanWord
+        );
 
 
-        output.appendChild(element);
+        output.appendChild(
+            element
+        );
 
     });
 
@@ -581,40 +671,57 @@ BUTTONS
 =========================================================
 */
 
-const anniversaryBtn =
-    document.getElementById(
-        "anniversaryBtn"
-    );
-
-const simplifiedBtn =
-    document.getElementById(
-        "simplifiedBtn"
-    );
-
-
-anniversaryBtn.addEventListener(
+document
+.getElementById("anniversaryBtn")
+.addEventListener(
     "click",
-    async function() {
+    async () => {
 
-        anniversaryBtn.classList.add("active");
+        document
+        .getElementById(
+            "anniversaryBtn"
+        )
+        .classList.add("active");
 
-        simplifiedBtn.classList.remove("active");
 
-        await loadDictionary("Anniversary");
+        document
+        .getElementById(
+            "simplifiedBtn"
+        )
+        .classList.remove("active");
+
+
+        await loadDictionary(
+            "Anniversary"
+        );
 
     }
 );
 
 
-simplifiedBtn.addEventListener(
+document
+.getElementById("simplifiedBtn")
+.addEventListener(
     "click",
-    async function() {
+    async () => {
 
-        simplifiedBtn.classList.add("active");
+        document
+        .getElementById(
+            "simplifiedBtn"
+        )
+        .classList.add("active");
 
-        anniversaryBtn.classList.remove("active");
 
-        await loadDictionary("Simplified");
+        document
+        .getElementById(
+            "anniversaryBtn"
+        )
+        .classList.remove("active");
+
+
+        await loadDictionary(
+            "Simplified"
+        );
 
     }
 );
@@ -622,16 +729,16 @@ simplifiedBtn.addEventListener(
 
 /*
 =========================================================
-LIVE TEXT INPUT
+LIVE INPUT
 =========================================================
 */
 
 document
-    .getElementById("inputText")
-    .addEventListener(
-        "input",
-        renderText
-    );
+.getElementById("inputText")
+.addEventListener(
+    "input",
+    renderText
+);
 
 
 /*
@@ -640,7 +747,9 @@ START
 =========================================================
 */
 
-loadDictionary("Anniversary");
+loadDictionary(
+    "Anniversary"
+);
 
 </script>
 
