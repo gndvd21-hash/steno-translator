@@ -224,6 +224,91 @@ let loadingDictionary = false;
 
 /*
 =========================================================
+PHRASE BRAIN
+=========================================================
+
+IMPORTANT:
+
+This is ONLY the recognition layer for now.
+
+The actual Greggdict word renderer remains untouched.
+
+We use longest-match-first so:
+
+"I am ready"
+
+becomes:
+
+"I am" + "ready"
+
+instead of:
+
+"I" + "am" + "ready".
+*/
+
+
+const phraseDatabase = [
+
+    "as a matter of fact",
+    "as soon as possible",
+    "at the same time",
+    "in other words",
+    "once in a while",
+    "in my opinion",
+    "in the first place",
+    "in due course",
+
+    "we shall not",
+    "we shall be",
+    "we have been",
+    "we have not",
+    "we are not",
+    "we will not",
+
+    "we shall",
+    "we have",
+    "we will",
+    "we are",
+    "we can",
+    "we cannot",
+
+    "you can",
+    "he was",
+    "to you",
+    "at the",
+    "is the",
+    "of the",
+    "and the",
+    "will be",
+    "to the",
+    "that the",
+    "of you",
+    "it is",
+    "by the",
+    "it was",
+    "i am",
+    "to me",
+    "to my",
+    "at once",
+
+    "dear sir"
+];
+
+
+/*
+=========================================================
+PREPARE PHRASES
+=========================================================
+*/
+
+const normalizedPhrases =
+phraseDatabase
+    .map(p => p.toLowerCase().trim().split(/\s+/))
+    .sort((a, b) => b.length - a.length);
+
+
+/*
+=========================================================
 LOAD DICTIONARY
 =========================================================
 */
@@ -259,15 +344,6 @@ async function loadDictionary(type) {
 
         /*
         Build exact word lookup.
-
-        Example:
-
-        "tell" -> tell entry
-
-        It will NOT match:
-        teller
-        telling
-        tellurium
         */
 
         data.forEach(pageData => {
@@ -373,7 +449,7 @@ function createGreggImage(entry) {
 
 
     /*
-    Cache breaker just like the original app.
+    Cache breaker
     */
 
     image.src +=
@@ -384,25 +460,8 @@ function createGreggImage(entry) {
 
 
     /*
-    =====================================================
-    THIS IS THE IMPORTANT PART
-    =====================================================
-
-    Richy Liu's original code does:
-
-        scale = 1281 / naturalWidth
-
-    Then:
-
-        width = 1281
-
-        left = -(x * scale - 5)
-
-        top = -(y * scale - 50)
-
-    We now do exactly that.
+    Richy Liu positioning
     */
-
 
     image.onload = function() {
 
@@ -415,33 +474,14 @@ function createGreggImage(entry) {
         const OFFSET = 5;
 
 
-        /*
-        Calculate the scale from the actual
-        dictionary image.
-        */
-
         const scale =
             IMG_WIDTH /
             image.naturalWidth;
 
 
-        /*
-        Set the image to Richy Liu's
-        1281px display width.
-        */
-
         image.style.width =
             IMG_WIDTH + "px";
 
-
-        /*
-        Position horizontally.
-
-        Original:
-
-        left:
-        -(word.x * scale - displaySize.offset)
-        */
 
         image.style.left =
 
@@ -449,25 +489,12 @@ function createGreggImage(entry) {
             + "px";
 
 
-        /*
-        Position vertically.
-
-        Original:
-
-        top:
-        -(word.y * scale - displaySize.y / 2)
-        */
-
         image.style.top =
 
             -(entry.y * scale -
             DISPLAY_HEIGHT / 2)
             + "px";
 
-
-        /*
-        NOW show the image.
-        */
 
         image.style.visibility =
             "visible";
@@ -514,7 +541,7 @@ function createWordElement(word) {
     "word-label";
 
     label.textContent =
-    word;
+        word;
 
 
     wrapper.appendChild(label);
@@ -525,11 +552,11 @@ function createWordElement(word) {
     */
 
     const key =
-    word.toLowerCase().trim();
+        word.toLowerCase().trim();
 
 
     const entry =
-    dictionary[key];
+        dictionary[key];
 
 
     if (!entry) {
@@ -538,10 +565,10 @@ function createWordElement(word) {
         document.createElement("div");
 
         unknown.className =
-        "unknown";
+            "unknown";
 
         unknown.textContent =
-        "No outline";
+            "No outline";
 
         wrapper.appendChild(
             unknown
@@ -553,13 +580,221 @@ function createWordElement(word) {
 
 
     const image =
-    createGreggImage(entry);
+        createGreggImage(entry);
 
 
     wrapper.appendChild(image);
 
 
     return wrapper;
+
+}
+
+
+/*
+=========================================================
+CREATE PHRASE PLACEHOLDER
+=========================================================
+
+For this first test, we DO NOT invent a shorthand image.
+
+We simply prove that the parser recognized the phrase.
+
+Once the parser is confirmed, this function will be
+replaced by the REAL phrase-image renderer.
+=========================================================
+*/
+
+function createPhraseElement(phrase) {
+
+    const wrapper =
+    document.createElement("div");
+
+    wrapper.className =
+    "word-container";
+
+
+    const label =
+    document.createElement("div");
+
+    label.className =
+    "word-label";
+
+    label.textContent =
+        phrase;
+
+
+    wrapper.appendChild(label);
+
+
+    const unknown =
+    document.createElement("div");
+
+    unknown.className =
+        "unknown";
+
+    unknown.textContent =
+        "Phrase recognized";
+
+    wrapper.appendChild(unknown);
+
+
+    return wrapper;
+
+}
+
+
+/*
+=========================================================
+PHRASE PARSER
+=========================================================
+
+Returns:
+
+[
+    {
+        type: "phrase",
+        text: "i am"
+    },
+
+    {
+        type: "word",
+        text: "ready"
+    }
+]
+
+Longest phrase wins.
+=========================================================
+*/
+
+function parseIntoPhrases(text) {
+
+    const rawWords =
+        text
+            .trim()
+            .split(/\s+/);
+
+
+    const tokens = [];
+
+    let i = 0;
+
+
+    while (i < rawWords.length) {
+
+        let matched = null;
+
+
+        /*
+        Try every known phrase,
+        longest first.
+        */
+
+        for (const phraseWords of normalizedPhrases) {
+
+            const length =
+                phraseWords.length;
+
+
+            if (
+                i + length >
+                rawWords.length
+            ) {
+                continue;
+            }
+
+
+            let matches = true;
+
+
+            for (
+                let j = 0;
+                j < length;
+                j++
+            ) {
+
+                const clean =
+                    rawWords[i + j]
+                        .replace(
+                            /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
+                            ""
+                        )
+                        .toLowerCase();
+
+
+                if (
+                    clean !==
+                    phraseWords[j]
+                ) {
+
+                    matches = false;
+
+                    break;
+
+                }
+
+            }
+
+
+            if (matches) {
+
+                matched =
+                    phraseWords.join(" ");
+
+                break;
+
+            }
+
+        }
+
+
+        if (matched) {
+
+            tokens.push({
+
+                type: "phrase",
+
+                text: matched
+
+            });
+
+
+            i +=
+                matched.split(" ").length;
+
+        }
+
+        else {
+
+            const clean =
+                rawWords[i]
+                    .replace(
+                        /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
+                        ""
+                    );
+
+
+            if (clean) {
+
+                tokens.push({
+
+                    type: "word",
+
+                    text: clean
+
+                });
+
+            }
+
+
+            i++;
+
+        }
+
+    }
+
+
+    return tokens;
 
 }
 
@@ -585,7 +820,7 @@ function renderText() {
 
 
     const text =
-    input.value.trim();
+        input.value.trim();
 
 
     if (!text) {
@@ -619,46 +854,69 @@ function renderText() {
 
 
     /*
-    Separate the sentence into words.
+    =====================================================
+    NEW BRAIN
+    =====================================================
+
+    Instead of immediately doing:
+
+        text.split(/\s+/)
+
+    we first ask:
+
+        "Is this part of the sentence a known phrase?"
+
+    If yes:
+        phrase
+
+    If no:
+        normal Greggdict word
     */
 
-    const words =
-    text.split(/\s+/);
+    const tokens =
+        parseIntoPhrases(text);
 
 
-    words.forEach(originalWord => {
-
-        /*
-        Remove punctuation for lookup.
-
-        Example:
-
-        "tell," -> "tell"
-
-        "sister." -> "sister"
-        */
-
-        const cleanWord =
-        originalWord.replace(
-            /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
-            ""
-        );
+    tokens.forEach(token => {
 
 
-        if (!cleanWord) {
-            return;
+        if (token.type === "phrase") {
+
+            /*
+            TEMPORARY:
+
+            This proves that the phrase parser
+            correctly detected the phrase.
+
+            Later this becomes the REAL
+            phrase outline renderer.
+            */
+
+            const element =
+                createPhraseElement(
+                    token.text
+                );
+
+
+            output.appendChild(
+                element
+            );
+
         }
 
+        else {
 
-        const element =
-        createWordElement(
-            cleanWord
-        );
+            const element =
+                createWordElement(
+                    token.text
+                );
 
 
-        output.appendChild(
-            element
-        );
+            output.appendChild(
+                element
+            );
+
+        }
 
     });
 
