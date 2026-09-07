@@ -135,6 +135,12 @@ textarea {
     color: #b00020;
 }
 
+.fallback-label {
+    font-size: 11px;
+    color: #777;
+    margin-top: 3px;
+}
+
 </style>
 </head>
 
@@ -219,92 +225,48 @@ let currentDictionary = "Anniversary";
 
 let dictionary = {};
 
+let simplifiedDictionary = {};
+
 let loadingDictionary = false;
 
 
 /*
 =========================================================
-PHRASE BRAIN
-=========================================================
-
-IMPORTANT:
-
-This is ONLY the recognition layer for now.
-
-The actual Greggdict word renderer remains untouched.
-
-We use longest-match-first so:
-
-"I am ready"
-
-becomes:
-
-"I am" + "ready"
-
-instead of:
-
-"I" + "am" + "ready".
-*/
-
-
-const phraseDatabase = [
-
-    "as a matter of fact",
-    "as soon as possible",
-    "at the same time",
-    "in other words",
-    "once in a while",
-    "in my opinion",
-    "in the first place",
-    "in due course",
-
-    "we shall not",
-    "we shall be",
-    "we have been",
-    "we have not",
-    "we are not",
-    "we will not",
-
-    "we shall",
-    "we have",
-    "we will",
-    "we are",
-    "we can",
-    "we cannot",
-
-    "you can",
-    "he was",
-    "to you",
-    "at the",
-    "is the",
-    "of the",
-    "and the",
-    "will be",
-    "to the",
-    "that the",
-    "of you",
-    "it is",
-    "by the",
-    "it was",
-    "i am",
-    "to me",
-    "to my",
-    "at once",
-
-    "dear sir"
-];
-
-
-/*
-=========================================================
-PREPARE PHRASES
+BUILD DICTIONARY
 =========================================================
 */
 
-const normalizedPhrases =
-phraseDatabase
-    .map(p => p.toLowerCase().trim().split(/\s+/))
-    .sort((a, b) => b.length - a.length);
+function buildDictionary(data) {
+
+    const result = {};
+
+    data.forEach(pageData => {
+
+        pageData.words.forEach(entry => {
+
+            const key =
+                entry.t
+                    .toLowerCase()
+                    .trim();
+
+            result[key] = {
+
+                word: entry.t,
+
+                page: pageData.page,
+
+                x: entry.x,
+
+                y: entry.y
+
+            };
+
+        });
+
+    });
+
+    return result;
+}
 
 
 /*
@@ -324,9 +286,9 @@ async function loadDictionary(type) {
     try {
 
         const response =
-        await fetch(
-            dictionaries[type].reference
-        );
+            await fetch(
+                dictionaries[type].reference
+            );
 
         if (!response.ok) {
 
@@ -337,44 +299,80 @@ async function loadDictionary(type) {
         }
 
         const data =
-        await response.json();
-
-        dictionary = {};
+            await response.json();
 
 
         /*
-        Build exact word lookup.
+        Build the dictionary being selected.
         */
 
-        data.forEach(pageData => {
-
-            pageData.words.forEach(entry => {
-
-                const key =
-                entry.t
-                    .toLowerCase()
-                    .trim();
-
-                dictionary[key] = {
-
-                    word: entry.t,
-
-                    page: pageData.page,
-
-                    x: entry.x,
-
-                    y: entry.y
-
-                };
-
-            });
-
-        });
+        const newDictionary =
+            buildDictionary(data);
 
 
-        currentDictionary = type;
+        /*
+        If Simplified is selected,
+        use Simplified normally.
+        */
 
-        loadingDictionary = false;
+        if (type === "Simplified") {
+
+            dictionary =
+                newDictionary;
+
+            simplifiedDictionary =
+                newDictionary;
+
+        }
+
+
+        /*
+        If Anniversary is selected,
+        Anniversary remains the main dictionary.
+        */
+
+        else {
+
+            dictionary =
+                newDictionary;
+
+
+            /*
+            Load Simplified as a fallback
+            if it has not already been loaded.
+            */
+
+            if (
+                Object.keys(simplifiedDictionary).length === 0
+            ) {
+
+                const simplifiedResponse =
+                    await fetch(
+                        dictionaries.Simplified.reference
+                    );
+
+                if (simplifiedResponse.ok) {
+
+                    const simplifiedData =
+                        await simplifiedResponse.json();
+
+                    simplifiedDictionary =
+                        buildDictionary(
+                            simplifiedData
+                        );
+
+                }
+
+            }
+
+        }
+
+
+        currentDictionary =
+            type;
+
+        loadingDictionary =
+            false;
 
         renderText();
 
@@ -384,7 +382,8 @@ async function loadDictionary(type) {
 
         console.error(error);
 
-        loadingDictionary = false;
+        loadingDictionary =
+            false;
 
         showStatus(
             "Could not load dictionary.",
@@ -419,20 +418,23 @@ CREATE GREGG IMAGE
 =========================================================
 */
 
-function createGreggImage(entry) {
+function createGreggImage(
+    entry,
+    dictionaryType = currentDictionary
+) {
 
     const box =
-    document.createElement("div");
+        document.createElement("div");
 
     box.className =
-    "gregg-box";
+        "gregg-box";
 
 
     const image =
-    document.createElement("img");
+        document.createElement("img");
 
     image.className =
-    "gregg-page";
+        "gregg-page";
 
 
     /*
@@ -441,7 +443,7 @@ function createGreggImage(entry) {
 
     image.src =
 
-        dictionaries[currentDictionary].pages +
+        dictionaries[dictionaryType].pages +
 
         entry.page +
 
@@ -449,7 +451,7 @@ function createGreggImage(entry) {
 
 
     /*
-    Cache breaker
+    Cache breaker just like the original app.
     */
 
     image.src +=
@@ -460,7 +462,9 @@ function createGreggImage(entry) {
 
 
     /*
-    Richy Liu positioning
+    =====================================================
+    RICHY LIU ORIGINAL POSITIONING
+    =====================================================
     */
 
     image.onload = function() {
@@ -528,17 +532,17 @@ CREATE WORD
 function createWordElement(word) {
 
     const wrapper =
-    document.createElement("div");
+        document.createElement("div");
 
     wrapper.className =
-    "word-container";
+        "word-container";
 
 
     const label =
-    document.createElement("div");
+        document.createElement("div");
 
     label.className =
-    "word-label";
+        "word-label";
 
     label.textContent =
         word;
@@ -548,21 +552,63 @@ function createWordElement(word) {
 
 
     /*
-    EXACT LOOKUP
+    =====================================================
+    FIRST LOOK IN THE CURRENT DICTIONARY
+    =====================================================
     */
 
     const key =
         word.toLowerCase().trim();
 
 
-    const entry =
+    let entry =
         dictionary[key];
 
+
+    let source =
+        currentDictionary;
+
+
+    /*
+    =====================================================
+    ANNIVERSARY FALLBACK
+    =====================================================
+
+    If the word does not exist in Anniversary,
+    look for it in Simplified.
+
+    The app still remains in Anniversary mode.
+    */
+
+    if (
+        !entry &&
+        currentDictionary === "Anniversary"
+    ) {
+
+        entry =
+            simplifiedDictionary[key];
+
+
+        if (entry) {
+
+            source =
+                "Simplified";
+
+        }
+
+    }
+
+
+    /*
+    =====================================================
+    NO OUTLINE
+    =====================================================
+    */
 
     if (!entry) {
 
         const unknown =
-        document.createElement("div");
+            document.createElement("div");
 
         unknown.className =
             "unknown";
@@ -579,222 +625,50 @@ function createWordElement(word) {
     }
 
 
+    /*
+    =====================================================
+    CREATE IMAGE
+    =====================================================
+    */
+
     const image =
-        createGreggImage(entry);
+        createGreggImage(
+            entry,
+            source
+        );
 
 
     wrapper.appendChild(image);
 
 
-    return wrapper;
-
-}
-
-
-/*
-=========================================================
-CREATE PHRASE PLACEHOLDER
-=========================================================
-
-For this first test, we DO NOT invent a shorthand image.
-
-We simply prove that the parser recognized the phrase.
-
-Once the parser is confirmed, this function will be
-replaced by the REAL phrase-image renderer.
-=========================================================
-*/
-
-function createPhraseElement(phrase) {
-
-    const wrapper =
-    document.createElement("div");
-
-    wrapper.className =
-    "word-container";
-
-
-    const label =
-    document.createElement("div");
-
-    label.className =
-    "word-label";
-
-    label.textContent =
-        phrase;
-
-
-    wrapper.appendChild(label);
-
-
-    const unknown =
-    document.createElement("div");
-
-    unknown.className =
-        "unknown";
-
-    unknown.textContent =
-        "Phrase recognized";
-
-    wrapper.appendChild(unknown);
-
-
-    return wrapper;
-
-}
-
-
-/*
-=========================================================
-PHRASE PARSER
-=========================================================
-
-Returns:
-
-[
-    {
-        type: "phrase",
-        text: "i am"
-    },
-
-    {
-        type: "word",
-        text: "ready"
-    }
-]
-
-Longest phrase wins.
-=========================================================
-*/
-
-function parseIntoPhrases(text) {
-
-    const rawWords =
-        text
-            .trim()
-            .split(/\s+/);
-
-
-    const tokens = [];
-
-    let i = 0;
-
-
-    while (i < rawWords.length) {
-
-        let matched = null;
-
-
-        /*
-        Try every known phrase,
-        longest first.
-        */
-
-        for (const phraseWords of normalizedPhrases) {
-
-            const length =
-                phraseWords.length;
-
-
-            if (
-                i + length >
-                rawWords.length
-            ) {
-                continue;
-            }
-
-
-            let matches = true;
-
-
-            for (
-                let j = 0;
-                j < length;
-                j++
-            ) {
-
-                const clean =
-                    rawWords[i + j]
-                        .replace(
-                            /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
-                            ""
-                        )
-                        .toLowerCase();
-
-
-                if (
-                    clean !==
-                    phraseWords[j]
-                ) {
-
-                    matches = false;
-
-                    break;
-
-                }
-
-            }
-
-
-            if (matches) {
-
-                matched =
-                    phraseWords.join(" ");
-
-                break;
-
-            }
-
-        }
-
-
-        if (matched) {
-
-            tokens.push({
-
-                type: "phrase",
-
-                text: matched
-
-            });
-
-
-            i +=
-                matched.split(" ").length;
-
-        }
-
-        else {
-
-            const clean =
-                rawWords[i]
-                    .replace(
-                        /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
-                        ""
-                    );
-
-
-            if (clean) {
-
-                tokens.push({
-
-                    type: "word",
-
-                    text: clean
-
-                });
-
-            }
-
-
-            i++;
-
-        }
+    /*
+    =====================================================
+    IF SIMPLIFIED WAS USED AS FALLBACK
+    =====================================================
+    */
+
+    if (
+        currentDictionary === "Anniversary" &&
+        source === "Simplified"
+    ) {
+
+        const fallbackLabel =
+            document.createElement("div");
+
+        fallbackLabel.className =
+            "fallback-label";
+
+        fallbackLabel.textContent =
+            "(Simplified)";
+
+        wrapper.appendChild(
+            fallbackLabel
+        );
 
     }
 
 
-    return tokens;
+    return wrapper;
 
 }
 
@@ -808,15 +682,15 @@ RENDER TEXT
 function renderText() {
 
     const input =
-    document.getElementById(
-        "inputText"
-    );
+        document.getElementById(
+            "inputText"
+        );
 
 
     const output =
-    document.getElementById(
-        "output"
-    );
+        document.getElementById(
+            "output"
+        );
 
 
     const text =
@@ -855,68 +729,47 @@ function renderText() {
 
     /*
     =====================================================
-    NEW BRAIN
+    SEPARATE THE SENTENCE INTO WORDS
     =====================================================
-
-    Instead of immediately doing:
-
-        text.split(/\s+/)
-
-    we first ask:
-
-        "Is this part of the sentence a known phrase?"
-
-    If yes:
-        phrase
-
-    If no:
-        normal Greggdict word
     */
 
-    const tokens =
-        parseIntoPhrases(text);
+    const words =
+        text.split(/\s+/);
 
 
-    tokens.forEach(token => {
+    words.forEach(originalWord => {
 
+        /*
+        Remove punctuation for lookup.
 
-        if (token.type === "phrase") {
+        Example:
 
-            /*
-            TEMPORARY:
+        "tell," -> "tell"
 
-            This proves that the phrase parser
-            correctly detected the phrase.
+        "sister." -> "sister"
+        */
 
-            Later this becomes the REAL
-            phrase outline renderer.
-            */
-
-            const element =
-                createPhraseElement(
-                    token.text
-                );
-
-
-            output.appendChild(
-                element
+        const cleanWord =
+            originalWord.replace(
+                /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
+                ""
             );
 
+
+        if (!cleanWord) {
+            return;
         }
 
-        else {
 
-            const element =
-                createWordElement(
-                    token.text
-                );
-
-
-            output.appendChild(
-                element
+        const element =
+            createWordElement(
+                cleanWord
             );
 
-        }
+
+        output.appendChild(
+            element
+        );
 
     });
 
