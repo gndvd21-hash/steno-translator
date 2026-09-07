@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English to Gregg Shorthand Converter</title>
+    <title>English to Gregg Shorthand Lookup</title>
     <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; }
         body { margin: 0; padding: 20px; background-color: #f4f6f8; }
@@ -11,100 +11,77 @@
         .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; align-items: center; }
         .container { display: flex; gap: 20px; height: 75vh; }
         .panel { flex: 1; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-        textarea { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 16px; resize: none; }
-        .steno-output { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
-        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 6px; min-width: 80px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .word-card .label { font-size: 13px; color: #333; font-weight: bold; border-bottom: 1px solid #eee; width: 100%; text-align: center; padding-bottom: 4px; }
-        .steno-svg { width: 70px; height: 70px; margin-top: 5px; }
+        textarea { width: 100%; height: 60%; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 16px; resize: none; margin-bottom: 10px; }
+        .word-list { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; padding: 10px; border: 1px solid #eee; background: #fafafa; border-radius: 4px; }
+        .word-btn { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .word-btn:hover { background: #0056b3; }
+        iframe { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <header>
-    <h2>English to Gregg Shorthand Translator</h2>
+    <h2>English to Gregg Shorthand Lookup</h2>
 </header>
 
 <div class="controls">
     <label><strong>Edition:</strong></label>
-    <input type="radio" id="anniversary" name="edition" value="anniversary" checked onchange="translateText()">
+    <input type="radio" id="anniversary" name="edition" value="an" checked onchange="updateSearch()">
     <label for="anniversary">Anniversary</label>
     
-    <input type="radio" id="simplified" name="edition" value="simplified" onchange="translateText()">
+    <input type="radio" id="simplified" name="edition" value="sm" onchange="updateSearch()">
     <label for="simplified">Simplified</label>
 </div>
 
 <div class="container">
     <div class="panel">
         <h3>English Text</h3>
-        <textarea id="inputText" placeholder="Type or paste text here..." oninput="translateText()"></textarea>
+        <textarea id="inputText" placeholder="Type or paste your text here..." oninput="processText()"></textarea>
+        <h4>Click a word to search dictionary:</h4>
+        <div id="wordButtons" class="word-list"></div>
     </div>
     
     <div class="panel">
-        <h3>Gregg Steno Output</h3>
-        <div id="stenoDisplay" class="steno-output"></div>
+        <h3>Gregg Dictionary View</h3>
+        <iframe id="dictFrame" src="https://greggdict.rliu.dev/"></iframe>
     </div>
 </div>
 
 <script>
-    // Dictionary mapping words to direct SVG stroke paths
-    const stenoDictionary = {
-        "image": `<path d="M 15 50 L 55 50 M 55 50 L 35 15" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "printer": `<path d="M 15 15 L 15 55 Q 35 25 55 45 L 55 60" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "guide": `<path d="M 15 45 Q 35 15 55 45 L 55 60" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "the": `<path d="M 25 45 Q 35 25 45 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "try": `<path d="M 15 50 Q 35 15 55 35 L 60 55" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "test": `<path d="M 15 45 Q 35 15 55 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "testing": `<path d="M 15 45 Q 35 15 55 45 Q 60 60 50 65" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "trial": `<path d="M 15 55 Q 35 15 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "to": `<path d="M 15 35 C 25 15, 45 15, 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "of": `<path d="M 25 20 C 15 40, 15 55, 35 55" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "and": `<path d="M 15 45 Q 35 25 55 45" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "in": `<path d="M 15 35 L 45 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "is": `<path d="M 25 25 C 35 35, 35 45, 25 55" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-        "you": `<path d="M 15 35 Q 35 55 55 35" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`
-    };
+    let currentSelectedWord = '';
 
-    // Generic phonetic stroke builder for unmapped words
-    function generatePhoneticStroke(word) {
-        let path = "M 15 40";
-        for (let i = 0; i < word.length; i++) {
-            const x = 15 + (i + 1) * (40 / word.length);
-            const y = (i % 2 === 0) ? 20 : 50;
-            path += ` Q ${x - 5} ${y}, ${x} 40`;
-        }
-        return `<path d="${path}" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
-    }
-
-    function translateText() {
+    function processText() {
         const text = document.getElementById('inputText').value;
-        const display = document.getElementById('stenoDisplay');
+        const container = document.getElementById('wordButtons');
+        container.innerHTML = '';
         
-        display.innerHTML = '';
         if (!text.trim()) return;
 
-        const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+        const words = [...new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/))];
 
         words.forEach(word => {
             if (!word) return;
-
-            const card = document.createElement('div');
-            card.className = 'word-card';
-
-            const label = document.createElement('span');
-            label.className = 'label';
-            label.innerText = word;
-            card.appendChild(label);
-
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("class", "steno-svg");
-            svg.setAttribute("viewBox", "0 0 70 70");
-
-            // Use exact stroke from dictionary or generate a phonetic stroke outline
-            svg.innerHTML = stenoDictionary[word] || generatePhoneticStroke(word);
-
-            card.appendChild(svg);
-            display.appendChild(card);
+            const btn = document.createElement('button');
+            btn.className = 'word-btn';
+            btn.innerText = word;
+            btn.onclick = () => searchWord(word);
+            container.appendChild(btn);
         });
+
+        if (words.length > 0 && !currentSelectedWord) {
+            searchWord(words[0]);
+        }
+    }
+
+    function searchWord(word) {
+        currentSelectedWord = word;
+        updateSearch();
+    }
+
+    function updateSearch() {
+        if (!currentSelectedWord) return;
+        const frame = document.getElementById('dictFrame');
+        frame.src = `https://greggdict.rliu.dev/?search=${currentSelectedWord}`;
     }
 </script>
 
