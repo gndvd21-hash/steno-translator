@@ -8,7 +8,7 @@
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { margin: 0; padding: 20px; background-color: #f4f6f8; }
         header { text-align: center; margin-bottom: 15px; }
-        .status-bar { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 15px; color: #d9534f; }
+        .status-bar { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 15px; color: #007bff; }
         .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; align-items: center; }
         .container { display: flex; gap: 20px; height: 75vh; }
         .panel { flex: 1; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
@@ -51,22 +51,25 @@
 
 <script>
     let dictData = { anniversary: [], simplified: [] };
-    const CDN_BASE = 'https://cdn.jsdelivr.net/gh/richyliu/greggdict@master';
+    const CDN_BASE = 'https://cdn.jsdelivr.net/gh/richyliu/greggdict@master/src';
 
-    // Load data via jsDelivr CDN to avoid CORS issues
+    // Correct file paths: /src/data/anniversary.json & /src/data/simplified.json
     async function loadDictionaries() {
         const statusEl = document.getElementById('status');
         try {
             const [annRes, simRes] = await Promise.all([
-                fetch(`${CDN_BASE}/src/anniversary.json`),
-                fetch(`${CDN_BASE}/src/simplified.json`)
+                fetch(`${CDN_BASE}/data/anniversary.json`),
+                fetch(`${CDN_BASE}/data/simplified.json`)
             ]);
+            
+            if (!annRes.ok || !simRes.ok) throw new Error("HTTP error");
+
             dictData.anniversary = await annRes.json();
             dictData.simplified = await simRes.json();
             statusEl.innerText = 'Ready! Type in the box below.';
             statusEl.style.color = '#28a745';
         } catch (err) {
-            statusEl.innerText = 'Could not download dictionary assets. Please check internet connection.';
+            statusEl.innerText = 'Could not download dictionary assets. Check path or connection.';
             statusEl.style.color = '#dc3545';
         }
     }
@@ -93,7 +96,6 @@
             label.innerText = word;
             card.appendChild(label);
 
-            // Match word in loaded JSON
             const match = currentDict.find(item => item.word && item.word.toLowerCase() === word);
 
             if (match && match.image) {
@@ -101,9 +103,8 @@
                 cropBox.className = 'steno-crop';
 
                 const img = document.createElement('img');
-                img.src = `${CDN_BASE}/src/images/${match.image}`;
+                img.src = `${CDN_BASE}/images/${match.image}`;
                 
-                // Crop scanned entry using coordinates stored in dictionary
                 if (match.bounds) {
                     img.style.left = `-${match.bounds.x}px`;
                     img.style.top = `-${match.bounds.y}px`;
