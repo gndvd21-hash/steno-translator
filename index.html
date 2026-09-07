@@ -9,42 +9,29 @@
         type="module"></script>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
-
     body {
-        margin: 0;
         font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        color: #222;
-    }
-
-    .container {
-        max-width: 1200px;
-        margin: 30px auto;
-        padding: 20px;
+        background: #f5f5f5;
+        margin: 0;
+        padding: 40px;
     }
 
     h1 {
         text-align: center;
-        margin-bottom: 20px;
     }
 
-    .switch {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 20px;
+    .buttons {
+        text-align: center;
+        margin: 20px 0;
     }
 
     button {
-        padding: 10px 18px;
+        padding: 10px 20px;
+        margin: 5px;
         border: none;
         border-radius: 8px;
-        cursor: pointer;
-        background: #ddd;
         font-weight: bold;
+        cursor: pointer;
     }
 
     button.active {
@@ -53,100 +40,83 @@
     }
 
     textarea {
-        width: 100%;
-        height: 130px;
+        display: block;
+        width: 90%;
+        max-width: 1100px;
+        height: 100px;
+        margin: auto;
         padding: 15px;
         font-size: 18px;
-        border: 1px solid #ccc;
+        border: 2px solid #222;
         border-radius: 10px;
         resize: vertical;
     }
 
-    .results {
-        margin-top: 25px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+    #results {
+        width: 90%;
+        max-width: 1100px;
+        margin: 30px auto;
     }
 
-    .word-row {
-        display: grid;
-        grid-template-columns: 220px 1fr;
-        align-items: center;
+    .card {
         background: white;
-        border-radius: 10px;
-        padding: 12px;
-        box-shadow: 0 2px 6px rgba(0,0,0,.08);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        padding: 15px;
+        min-height: 90px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        display: flex;
+        align-items: center;
+        gap: 20px;
     }
 
-    .english {
-        font-size: 18px;
+    .word {
+        width: 180px;
         font-weight: bold;
+        font-size: 18px;
     }
 
     .source {
-        font-size: 11px;
+        font-size: 12px;
         color: #777;
-        margin-top: 4px;
+        margin-top: 5px;
+        font-weight: normal;
     }
 
-    .outline-box {
+    .outline {
+        position: relative;
         width: 365px;
         height: 100px;
         overflow: hidden;
-        position: relative;
         background: white;
+        flex-shrink: 0;
     }
 
-    .outline-box img {
+    .outline img {
         position: absolute;
-        width: 1281px;
         max-width: none;
+        display: block;
     }
 
-    .book-canvas {
-        width: 365px;
-        height: 100px;
-        object-fit: contain;
-        background: white;
-    }
-
-    .missing {
+    .error {
         color: #999;
-        font-style: italic;
-    }
-
-    @media(max-width:700px) {
-        .word-row {
-            grid-template-columns: 1fr;
-            gap: 8px;
-        }
-
-        .outline-box,
-        .book-canvas {
-            max-width: 100%;
-        }
+        font-size: 14px;
     }
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<h1>Gregg Shorthand Converter</h1>
 
-    <h1>Gregg Shorthand Converter</h1>
-
-    <div class="switch">
-        <button id="anniversaryBtn" class="active">Anniversary</button>
-        <button id="simplifiedBtn">Simplified</button>
-    </div>
-
-    <textarea id="input"
-        placeholder="Type an English sentence here..."></textarea>
-
-    <div id="results" class="results"></div>
-
+<div class="buttons">
+    <button id="annBtn" class="active">Anniversary</button>
+    <button id="simpBtn">Simplified</button>
 </div>
+
+<textarea id="input" placeholder="Type English text here..."></textarea>
+
+<div id="results"></div>
 
 <script type="module">
 
@@ -158,517 +128,379 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 
 /* =========================================================
-   GREGG DICTIONARY
-   ========================================================= */
+   SETTINGS
+========================================================= */
 
-const DICTIONARY_URLS = {
+const PDF_FILE = "Gregg Shorthand Manual (1929) (1).pdf";
+
+const DICTIONARY = {
     Anniversary:
-        "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Anniversary/reference.json",
+    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Anniversary/reference.json",
 
     Simplified:
-        "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Simplified/reference.json"
-};
-
-const PAGE_BASE = {
-    Anniversary:
-        "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Anniversary/pages/",
-
-    Simplified:
-        "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Simplified/pages/"
+    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/Simplified/reference.json"
 };
 
 let currentEdition = "Anniversary";
 
-const dictionaries = {
-    Anniversary: null,
-    Simplified: null
+let dictionary = {
+    Anniversary: [],
+    Simplified: []
 };
 
-
-/* =========================================================
-   DISPLAY SETTINGS
-   ========================================================= */
-
-const IMG_WIDTH = 1281;
-const DISPLAY_WIDTH = 365;
-const DISPLAY_HEIGHT = 100;
-const OFFSET = 5;
+let pdf = null;
 
 
 /* =========================================================
-   1929 BOOK FALLBACK
-   =========================================================
+   PDF LOADING
+========================================================= */
 
-   These are entries taken from the 1929 Anniversary Manual.
-
-   PDF page numbers below refer to the PDF page itself.
-   ========================================================= */
-
-const BOOK_ENTRIES = {
-
-    "my": {
-        page: 31,
-
-        // Crop around the actual shorthand outline for "my"
-        crop: {
-            x: 300,
-            y: 690,
-            w: 170,
-            h: 65
-        }
-    },
-
-    "i am": {
-        page: 31,
-
-        crop: {
-            x: 125,
-            y: 555,
-            w: 150,
-            h: 55
-        }
-    },
-
-    "of the": {
-        page: 31,
-
-        crop: {
-            x: 70,
-            y: 450,
-            w: 110,
-            h: 45
-        }
-    },
-
-    "and the": {
-        page: 31,
-
-        crop: {
-            x: 195,
-            y: 450,
-            w: 120,
-            h: 45
-        }
-    },
-
-    "will be": {
-        page: 31,
-
-        crop: {
-            x: 330,
-            y: 450,
-            w: 125,
-            h: 55
-        }
-    },
-
-    "to the": {
-        page: 31,
-
-        crop: {
-            x: 70,
-            y: 490,
-            w: 110,
-            h: 45
-        }
-    },
-
-    "that the": {
-        page: 31,
-
-        crop: {
-            x: 195,
-            y: 490,
-            w: 120,
-            h: 45
-        }
-    },
-
-    "of you": {
-        page: 31,
-
-        crop: {
-            x: 330,
-            y: 490,
-            w: 125,
-            h: 45
-        }
-    },
-
-    "it is": {
-        page: 31,
-
-        crop: {
-            x: 70,
-            y: 530,
-            w: 110,
-            h: 45
-        }
-    },
-
-    "by the": {
-        page: 31,
-
-        crop: {
-            x: 195,
-            y: 530,
-            w: 120,
-            h: 45
-        }
-    },
-
-    "it was": {
-        page: 31,
-
-        crop: {
-            x: 330,
-            y: 530,
-            w: 125,
-            h: 45
-        }
-    },
-
-    "you can": {
-        page: 31,
-
-        crop: {
-            x: 195,
-            y: 555,
-            w: 120,
-            h: 45
-        }
-    },
-
-    "he was": {
-        page: 31,
-
-        crop: {
-            x: 330,
-            y: 555,
-            w: 125,
-            h: 45
-        }
-    },
-
-    "to you": {
-        page: 31,
-
-        crop: {
-            x: 70,
-            y: 595,
-            w: 110,
-            h: 45
-        }
-    },
-
-    "at the": {
-        page: 31,
-
-        crop: {
-            x: 195,
-            y: 595,
-            w: 120,
-            h: 45
-        }
-    },
-
-    "is the": {
-        page: 31,
-
-        crop: {
-            x: 330,
-            y: 595,
-            w: 125,
-            h: 45
-        }
-    }
-};
-
-
-/* =========================================================
-   PDF
-   ========================================================= */
-
-let bookPDF = null;
-
-async function loadBook() {
+async function loadPDF() {
 
     try {
 
-        bookPDF = await pdfjsLib.getDocument(
-            "Gregg Shorthand Manual (1929) (1).pdf"
-        ).promise;
+        pdf = await pdfjsLib.getDocument(PDF_FILE).promise;
 
         console.log("1929 Gregg Manual loaded.");
 
     } catch (error) {
 
-        console.warn(
-            "1929 Gregg Manual could not be loaded.",
-            error
-        );
+        console.error("PDF could not be loaded:", error);
 
     }
 }
 
 
 /* =========================================================
-   LOAD DICTIONARY
-   ========================================================= */
+   DICTIONARY LOADING
+========================================================= */
 
 async function loadDictionary(edition) {
 
-    if (dictionaries[edition]) {
-        return dictionaries[edition];
+    if (dictionary[edition].length > 0)
+        return;
+
+    try {
+
+        const response = await fetch(
+            DICTIONARY[edition] + "?v=" + Date.now()
+        );
+
+        dictionary[edition] = await response.json();
+
+    } catch (error) {
+
+        console.error("Dictionary error:", error);
+
     }
-
-    const response = await fetch(
-        DICTIONARY_URLS[edition] + "?v=" + Date.now()
-    );
-
-    const data = await response.json();
-
-    const map = {};
-
-    for (const page of data) {
-
-        for (const word of page.words || []) {
-
-            const term = String(word.t || "")
-                .toLowerCase()
-                .trim();
-
-            if (!term) continue;
-
-            if (!map[term]) {
-                map[term] = {
-                    page: page.page,
-                    x: word.x,
-                    y: word.y
-                };
-            }
-        }
-    }
-
-    dictionaries[edition] = map;
-
-    return map;
 }
 
 
 /* =========================================================
-   NORMALIZE
-   ========================================================= */
+   NORMALIZE WORD
+========================================================= */
 
-function normalizeWord(word) {
+function cleanWord(word) {
 
     return word
         .toLowerCase()
-        .replace(/^[^a-z']+|[^a-z']+$/g, "")
-        .trim();
+        .replace(/^[^a-z0-9']+|[^a-z0-9']+$/gi, "");
+
 }
 
 
 /* =========================================================
-   FIND DICTIONARY WORD
-   ========================================================= */
+   DICTIONARY LOOKUP
+========================================================= */
 
-async function findDictionaryWord(word) {
+function dictionaryLookup(word) {
 
-    const dictionary =
-        await loadDictionary(currentEdition);
+    const clean = cleanWord(word);
 
-    return dictionary[normalizeWord(word)] || null;
+    return dictionary[currentEdition].find(
+        item => item.t.toLowerCase() === clean
+    );
+
 }
 
 
 /* =========================================================
-   CREATE DICTIONARY OUTLINE
-   ========================================================= */
+   BOOK PHRASES
+=========================================================
+
+   IMPORTANT:
+
+   These are taken from the actual 1929 manual.
+
+   "Dear Sir" = page 26
+   "I am"     = page 31
+
+========================================================= */
+
+const BOOK_PHRASES = {
+
+    "dear sir": {
+        page: 26,
+
+        // normalized coordinates
+        // around the "Dear Sir" outline
+        crop: {
+            x: 0.66,
+            y: 0.65,
+            width: 0.23,
+            height: 0.15
+        },
+
+        source: "1929 Manual — Business Abbreviation"
+    },
+
+    "i am": {
+        page: 31,
+
+        // normalized coordinates
+        // around the "I am" outline
+        crop: {
+            x: 0.23,
+            y: 0.77,
+            width: 0.22,
+            height: 0.12
+        },
+
+        source: "1929 Manual — Phrase Drill"
+    }
+
+};
+
+
+/* =========================================================
+   RENDER BOOK PHRASE
+========================================================= */
+
+async function createBookOutline(entry) {
+
+    if (!pdf)
+        return null;
+
+    try {
+
+        const page = await pdf.getPage(entry.page);
+
+        /*
+            Render the PDF page to an offscreen canvas.
+        */
+
+        const viewport = page.getViewport({
+            scale: 2
+        });
+
+        const canvas = document.createElement("canvas");
+
+        const context = canvas.getContext("2d");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+
+
+        /*
+            Convert normalized coordinates
+            into actual pixel coordinates.
+        */
+
+        const x = entry.crop.x * canvas.width;
+        const y = entry.crop.y * canvas.height;
+
+        const width = entry.crop.width * canvas.width;
+        const height = entry.crop.height * canvas.height;
+
+
+        /*
+            Create cropped canvas.
+        */
+
+        const cropCanvas = document.createElement("canvas");
+
+        cropCanvas.width = width;
+        cropCanvas.height = height;
+
+        const cropContext = cropCanvas.getContext("2d");
+
+        cropContext.drawImage(
+            canvas,
+            x,
+            y,
+            width,
+            height,
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        return cropCanvas.toDataURL("image/png");
+
+    } catch (error) {
+
+        console.error("Book rendering error:", error);
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
+   CREATE DICTIONARY IMAGE
+========================================================= */
 
 function createDictionaryOutline(entry) {
 
-    const box = document.createElement("div");
-    box.className = "outline-box";
-
-    const img = document.createElement("img");
+    if (!entry)
+        return null;
 
     const pageNumber =
         String(entry.page).padStart(3, "0");
 
-    img.src =
-        PAGE_BASE[currentEdition] +
-        pageNumber +
-        ".png";
+    const imageURL =
+        `https://raw.githubusercontent.com/richyliu/greggdict/master/assets/${currentEdition}/pages/${pageNumber}.png`;
 
-    img.onload = function () {
+
+    const DISPLAY_WIDTH = 365;
+    const DISPLAY_HEIGHT = 100;
+    const OFFSET = 5;
+    const IMG_WIDTH = 1281;
+
+
+    const wrapper = document.createElement("div");
+
+    wrapper.className = "outline";
+
+
+    const img = document.createElement("img");
+
+    img.src = imageURL + "?v=" + Date.now();
+
+    img.style.width = IMG_WIDTH + "px";
+
+
+    img.onload = function() {
 
         const scale =
             IMG_WIDTH / img.naturalWidth;
-
-        img.style.width =
-            IMG_WIDTH + "px";
 
         img.style.left =
             -(entry.x * scale - OFFSET) + "px";
 
         img.style.top =
             -(entry.y * scale - DISPLAY_HEIGHT / 2) + "px";
+
     };
 
-    box.appendChild(img);
 
-    return box;
+    wrapper.appendChild(img);
+
+    return wrapper;
+
 }
 
 
 /* =========================================================
-   CREATE BOOK OUTLINE
-   ========================================================= */
+   MATCH PHRASES FIRST
+========================================================= */
 
-async function createBookOutline(entry) {
+function tokenize(text) {
 
-    const canvas = document.createElement("canvas");
+    return text
+        .trim()
+        .split(/\s+/)
+        .map(cleanWord)
+        .filter(Boolean);
 
-    canvas.width = DISPLAY_WIDTH * 2;
-    canvas.height = DISPLAY_HEIGHT * 2;
-
-    canvas.className = "book-canvas";
-
-    if (!bookPDF) {
-        return canvas;
-    }
-
-    try {
-
-        const page =
-            await bookPDF.getPage(entry.page);
-
-        const scale = 2;
-
-        const viewport =
-            page.getViewport({ scale });
-
-        const fullCanvas =
-            document.createElement("canvas");
-
-        fullCanvas.width =
-            viewport.width;
-
-        fullCanvas.height =
-            viewport.height;
-
-        const fullContext =
-            fullCanvas.getContext("2d");
-
-        await page.render({
-            canvasContext: fullContext,
-            viewport: viewport
-        }).promise;
-
-        const crop = entry.crop;
-
-        const sx = crop.x * scale;
-        const sy = crop.y * scale;
-        const sw = crop.w * scale;
-        const sh = crop.h * scale;
-
-        const ctx =
-            canvas.getContext("2d");
-
-        ctx.clearRect(
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-        ctx.drawImage(
-            fullCanvas,
-
-            sx,
-            sy,
-            sw,
-            sh,
-
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Book rendering error:",
-            error
-        );
-    }
-
-    return canvas;
 }
 
 
-/* =========================================================
-   PHRASE MATCHING
-   ========================================================= */
+function findMatches(words) {
 
-function findBookPhrase(words, startIndex) {
+    const results = [];
 
-    // Longest phrase first.
-    // This prevents:
-    //
-    // I am
-    //
-    // from becoming:
-    //
-    // I + am
-    //
+    let i = 0;
 
-    const maxWords = 4;
 
-    for (
-        let count = maxWords;
-        count >= 2;
-        count--
-    ) {
+    while (i < words.length) {
 
-        const selected =
-            words.slice(
-                startIndex,
-                startIndex + count
-            );
+        let matched = false;
 
-        if (
-            selected.length !== count
-        ) continue;
 
-        const phrase =
-            selected
-                .map(normalizeWord)
-                .join(" ");
+        /*
+            Check longest phrases first.
 
-        if (BOOK_ENTRIES[phrase]) {
+            Example:
 
-            return {
-                phrase,
-                entry: BOOK_ENTRIES[phrase],
-                count
-            };
+            "dear sir"
+
+            gets matched before:
+
+            "dear"
+            "sir"
+        */
+
+        for (let length = 4; length >= 2; length--) {
+
+            const phrase =
+                words
+                    .slice(i, i + length)
+                    .join(" ");
+
+
+            if (BOOK_PHRASES[phrase]) {
+
+                results.push({
+                    type: "book",
+                    text: phrase,
+                    entry: BOOK_PHRASES[phrase]
+                });
+
+                i += length;
+
+                matched = true;
+
+                break;
+            }
+
         }
+
+
+        if (!matched) {
+
+            results.push({
+                type: "word",
+                text: words[i]
+            });
+
+            i++;
+
+        }
+
     }
 
-    return null;
+    return results;
+
 }
 
 
 /* =========================================================
-   RENDER
-   ========================================================= */
+   DISPLAY RESULTS
+========================================================= */
 
-async function render() {
+async function convert() {
 
-    const input =
+    const text =
         document.getElementById("input").value;
 
     const results =
@@ -676,223 +508,198 @@ async function render() {
 
     results.innerHTML = "";
 
-    if (!input.trim()) {
+
+    if (!text.trim())
         return;
-    }
+
+
+    await loadDictionary(currentEdition);
+
 
     const words =
-        input.trim().split(/\s+/);
-
-    let i = 0;
-
-    while (i < words.length) {
-
-        /* -----------------------------------------
-           1. PHRASE FIRST
-           ----------------------------------------- */
-
-        const phraseMatch =
-            findBookPhrase(words, i);
-
-        if (phraseMatch) {
-
-            const row =
-                document.createElement("div");
-
-            row.className = "word-row";
-
-            const label =
-                document.createElement("div");
-
-            label.innerHTML = `
-                <div class="english">
-                    ${phraseMatch.phrase}
-                </div>
-                <div class="source">
-                    1929 Manual — Phrase Drill
-                </div>
-            `;
-
-            row.appendChild(label);
-
-            const outline =
-                await createBookOutline(
-                    phraseMatch.entry
-                );
-
-            row.appendChild(outline);
-
-            results.appendChild(row);
-
-            i += phraseMatch.count;
-
-            continue;
-        }
+        tokenize(text);
 
 
-        /* -----------------------------------------
-           2. BRIEF FORM / BOOK
-           ----------------------------------------- */
-
-        const normalized =
-            normalizeWord(words[i]);
-
-        if (
-            currentEdition === "Anniversary" &&
-            BOOK_ENTRIES[normalized]
-        ) {
-
-            const row =
-                document.createElement("div");
-
-            row.className = "word-row";
-
-            const label =
-                document.createElement("div");
-
-            label.innerHTML = `
-                <div class="english">
-                    ${words[i]}
-                </div>
-                <div class="source">
-                    1929 Manual — Brief Form
-                </div>
-            `;
-
-            row.appendChild(label);
-
-            const outline =
-                await createBookOutline(
-                    BOOK_ENTRIES[normalized]
-                );
-
-            row.appendChild(outline);
-
-            results.appendChild(row);
-
-            i++;
-
-            continue;
-        }
+    const matches =
+        findMatches(words);
 
 
-        /* -----------------------------------------
-           3. NORMAL DICTIONARY
-           ----------------------------------------- */
+    for (const item of matches) {
 
-        const entry =
-            await findDictionaryWord(
-                words[i]
-            );
-
-        const row =
+        const card =
             document.createElement("div");
 
-        row.className = "word-row";
+        card.className = "card";
+
 
         const label =
             document.createElement("div");
 
+        label.className = "word";
+
         label.innerHTML = `
-            <div class="english">
-                ${words[i]}
-            </div>
-            <div class="source">
-                ${entry
-                    ? currentEdition + " Dictionary"
-                    : "No outline found"}
-            </div>
+            ${item.text}
+            <div class="source"></div>
         `;
 
-        row.appendChild(label);
 
-        if (entry) {
+        const source =
+            label.querySelector(".source");
 
-            row.appendChild(
-                createDictionaryOutline(entry)
-            );
 
-        } else {
+        card.appendChild(label);
 
-            const missing =
-                document.createElement("div");
 
-            missing.className = "missing";
+        /*
+            BOOK PHRASE
+        */
 
-            missing.textContent =
-                "No outline found yet";
+        if (item.type === "book") {
 
-            row.appendChild(missing);
+            source.textContent =
+                item.entry.source;
+
+
+            const image =
+                await createBookOutline(item.entry);
+
+
+            if (image) {
+
+                const imageElement =
+                    document.createElement("img");
+
+                imageElement.src = image;
+
+                imageElement.style.width = "365px";
+
+                imageElement.style.height = "100px";
+
+                imageElement.style.objectFit = "contain";
+
+                card.appendChild(imageElement);
+
+            } else {
+
+                source.textContent +=
+                    " — image unavailable";
+
+            }
+
         }
 
-        results.appendChild(row);
 
-        i++;
+        /*
+            NORMAL DICTIONARY WORD
+        */
+
+        else {
+
+            const entry =
+                dictionaryLookup(item.text);
+
+
+            if (entry) {
+
+                source.textContent =
+                    currentEdition + " Dictionary";
+
+
+                const outline =
+                    createDictionaryOutline(entry);
+
+
+                card.appendChild(outline);
+
+            } else {
+
+                source.textContent =
+                    "Not found";
+
+                const message =
+                    document.createElement("div");
+
+                message.className = "error";
+
+                message.textContent =
+                    "No outline found";
+
+                card.appendChild(message);
+
+            }
+
+        }
+
+
+        results.appendChild(card);
+
     }
+
 }
 
 
 /* =========================================================
    EVENTS
-   ========================================================= */
+========================================================= */
 
-let timer;
+let typingTimer;
 
 document
     .getElementById("input")
     .addEventListener("input", () => {
 
-        clearTimeout(timer);
+        clearTimeout(typingTimer);
 
-        timer = setTimeout(
-            render,
-            150
-        );
+        typingTimer =
+            setTimeout(convert, 250);
+
     });
 
 
 document
-    .getElementById("anniversaryBtn")
+    .getElementById("annBtn")
     .addEventListener("click", async () => {
 
         currentEdition = "Anniversary";
 
         document
-            .getElementById("anniversaryBtn")
+            .getElementById("annBtn")
             .classList.add("active");
 
         document
-            .getElementById("simplifiedBtn")
+            .getElementById("simpBtn")
             .classList.remove("active");
 
-        await render();
+        await convert();
+
     });
 
 
 document
-    .getElementById("simplifiedBtn")
+    .getElementById("simpBtn")
     .addEventListener("click", async () => {
 
         currentEdition = "Simplified";
 
         document
-            .getElementById("simplifiedBtn")
+            .getElementById("simpBtn")
             .classList.add("active");
 
         document
-            .getElementById("anniversaryBtn")
+            .getElementById("annBtn")
             .classList.remove("active");
 
-        await render();
+        await convert();
+
     });
 
 
 /* =========================================================
    START
-   ========================================================= */
+========================================================= */
 
-await loadBook();
-await loadDictionary("Anniversary");
+loadPDF();
+loadDictionary("Anniversary");
 
 </script>
 
