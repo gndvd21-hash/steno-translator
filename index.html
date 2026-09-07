@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Gregg Transcriber</title>
 
   <style>
@@ -19,11 +20,13 @@
 
     header {
       background: white;
-      padding: 20px 30px;
+      padding: 18px 30px;
       border-bottom: 1px solid #ddd;
+
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 20px;
     }
 
     header h1 {
@@ -36,10 +39,11 @@
       font-size: 15px;
       border: 1px solid #bbb;
       border-radius: 6px;
+      background: white;
     }
 
     main {
-      max-width: 1300px;
+      max-width: 1400px;
       margin: 25px auto;
       padding: 0 20px;
     }
@@ -66,28 +70,35 @@
 
     textarea {
       width: 100%;
-      height: 500px;
+      height: 550px;
+
       padding: 20px;
+
       border: none;
       outline: none;
       resize: vertical;
+
       font-size: 18px;
       line-height: 1.6;
       font-family: Arial, sans-serif;
     }
 
     #output {
-      height: 500px;
+      height: 550px;
       overflow-y: auto;
       padding: 20px;
     }
 
     .word-row {
       display: grid;
-      grid-template-columns: 180px 1fr;
-      gap: 20px;
-      padding: 12px 0;
+      grid-template-columns: 150px 1fr;
+
+      gap: 15px;
+
+      padding: 15px 0;
+
       border-bottom: 1px solid #eee;
+
       align-items: center;
     }
 
@@ -96,123 +107,509 @@
       font-size: 17px;
     }
 
-    .steno-placeholder {
-      color: #777;
-      font-size: 16px;
+    .gregg-box {
+      width: 500px;
+      height: 105px;
+
+      position: relative;
+
+      overflow: hidden;
+
+      border: 1px solid #ddd;
+      border-radius: 6px;
+
+      background: white;
+    }
+
+    .gregg-image {
+      position: absolute;
+
+      width: 1100px;
+
+      max-width: none;
+
+      pointer-events: none;
+
+      user-select: none;
+    }
+
+    .loading {
+      color: #888;
       font-style: italic;
+      padding: 20px;
     }
 
-    .info {
-      margin-top: 15px;
-      color: #666;
+    .not-found {
+      color: #999;
       font-size: 14px;
+      padding: 20px 0;
     }
 
-    @media (max-width: 800px) {
+    .error {
+      color: #b00020;
+      font-size: 14px;
+      padding: 20px;
+    }
+
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    @media (max-width: 900px) {
+
       .workspace {
         grid-template-columns: 1fr;
+      }
+
+      .gregg-box {
+        width: 100%;
       }
 
       .word-row {
         grid-template-columns: 120px 1fr;
       }
+
     }
   </style>
 </head>
 
+
 <body>
 
 <header>
+
   <h1>Gregg Transcriber</h1>
 
   <div>
-    <label for="series">Gregg Series: </label>
+
+    <label for="series">
+      Gregg Series:
+    </label>
 
     <select id="series">
-      <option value="Anniversary">Anniversary</option>
-      <option value="Simplified">Simplified</option>
+
+      <option value="Anniversary">
+        Anniversary
+      </option>
+
+      <option value="Simplified">
+        Simplified
+      </option>
+
     </select>
+
   </div>
+
 </header>
+
 
 <main>
 
   <div class="workspace">
 
-    <!-- LEFT SIDE -->
+
+    <!-- LEFT -->
+
     <div class="panel">
+
       <div class="panel-title">
         English / Text
       </div>
 
-      <textarea id="textInput" placeholder="Type or paste your English text here...">The court is now in session.
+      <textarea
+        id="textInput"
+        placeholder="Type or paste your English text here..."
+      >The court is now in session.
 
 Please take note of the proceedings.</textarea>
+
     </div>
 
 
-    <!-- RIGHT SIDE -->
+    <!-- RIGHT -->
+
     <div class="panel">
+
       <div class="panel-title">
         Gregg Shorthand
       </div>
 
-      <div id="output"></div>
+      <div id="output">
+
+        <div class="loading">
+          Loading Gregg dictionary...
+        </div>
+
+      </div>
+
     </div>
 
+
   </div>
 
-  <div class="info">
-    Prototype 1 — English text is currently converted into a word-by-word Gregg output layout.
+
+  <div class="status" id="status">
+    Loading dictionary...
   </div>
+
 
 </main>
 
 
 <script>
 
-const textInput = document.getElementById("textInput");
-const output = document.getElementById("output");
-const series = document.getElementById("series");
+/*
+==========================================================
+GREGG DICTIONARY CONFIGURATION
+==========================================================
+*/
 
+const BASE_URL =
+  "https://raw.githubusercontent.com/richyliu/greggdict/master/assets";
+
+
+const CONFIG = {
+
+  Anniversary: {
+    reference:
+      BASE_URL + "/Anniversary/reference.json",
+
+    pages:
+      BASE_URL + "/Anniversary/pages/"
+  },
+
+  Simplified: {
+    reference:
+      BASE_URL + "/Simplified/reference.json",
+
+    pages:
+      BASE_URL + "/Simplified/pages/"
+  }
+
+};
+
+
+/*
+==========================================================
+GLOBAL VARIABLES
+==========================================================
+*/
+
+let dictionaries = {};
+
+let currentSeries = "Anniversary";
+
+
+/*
+==========================================================
+LOAD DICTIONARY
+==========================================================
+*/
+
+async function loadDictionary(series) {
+
+  const status =
+    document.getElementById("status");
+
+  status.textContent =
+    "Loading " + series + " dictionary...";
+
+
+  try {
+
+    const response =
+      await fetch(CONFIG[series].reference);
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Dictionary could not be loaded."
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    /*
+      Convert the dictionary into:
+
+      word -> page + x + y
+    */
+
+    const lookup = {};
+
+
+    data.forEach(function(page) {
+
+      page.words.forEach(function(entry) {
+
+        lookup[
+          entry.t.toLowerCase()
+        ] = {
+
+          page: page.page,
+
+          x: entry.x,
+
+          y: entry.y
+
+        };
+
+      });
+
+    });
+
+
+    dictionaries[series] = lookup;
+
+
+    status.textContent =
+      series +
+      " dictionary loaded: " +
+      Object.keys(lookup).length.toLocaleString() +
+      " entries.";
+
+
+    updateOutput();
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "Could not load " +
+      series +
+      " dictionary.";
+
+    document.getElementById("output").innerHTML =
+
+      '<div class="error">' +
+
+      'Unable to load the Gregg dictionary. ' +
+
+      '<br><br>' +
+
+      'Make sure you are viewing this through GitHub Pages ' +
+
+      'or a web server, not directly from a local file.' +
+
+      '</div>';
+
+  }
+
+}
+
+
+/*
+==========================================================
+CREATE GREGG IMAGE
+==========================================================
+*/
+
+function createGreggImage(word) {
+
+  const dictionary =
+    dictionaries[currentSeries];
+
+
+  if (!dictionary) {
+
+    return createMessage(
+      "Dictionary is still loading..."
+    );
+
+  }
+
+
+  const entry =
+    dictionary[word.toLowerCase()];
+
+
+  if (!entry) {
+
+    return createMessage(
+      "No dictionary entry found"
+    );
+
+  }
+
+
+  /*
+    Dictionary coordinates are based on
+    the original scanned page.
+
+    We display the page at 50% scale.
+  */
+
+  const scale = 0.5;
+
+
+  const box =
+    document.createElement("div");
+
+  box.className =
+    "gregg-box";
+
+
+  const image =
+    document.createElement("img");
+
+  image.className =
+    "gregg-image";
+
+
+  image.src =
+    CONFIG[currentSeries].pages +
+    entry.page +
+    ".png";
+
+
+  /*
+    Position the dictionary page so the
+    requested word appears in the box.
+  */
+
+  const centerX =
+    entry.x * scale;
+
+
+  const centerY =
+    entry.y * scale;
+
+
+  image.style.left =
+    (250 - centerX) + "px";
+
+
+  image.style.top =
+    (52 - centerY) + "px";
+
+
+  image.alt =
+    "Gregg " +
+    currentSeries +
+    " outline for " +
+    word;
+
+
+  image.onerror = function() {
+
+    box.innerHTML =
+      '<div class="not-found">' +
+      'Image could not be loaded.' +
+      '</div>';
+
+  };
+
+
+  box.appendChild(image);
+
+
+  return box;
+
+}
+
+
+/*
+==========================================================
+MESSAGE
+==========================================================
+*/
+
+function createMessage(text) {
+
+  const box =
+    document.createElement("div");
+
+  box.className =
+    "gregg-box";
+
+
+  box.innerHTML =
+    '<div class="not-found">' +
+    text +
+    '</div>';
+
+
+  return box;
+
+}
+
+
+/*
+==========================================================
+UPDATE OUTPUT
+==========================================================
+*/
 
 function updateOutput() {
 
-  const text = textInput.value;
+  const text =
+    document.getElementById("textInput").value;
 
-  /*
-    Separate the English text into words.
-  */
-  const words = text.match(/[A-Za-z']+/g) || [];
+
+  const output =
+    document.getElementById("output");
+
 
   output.innerHTML = "";
 
 
-  words.forEach(function(word) {
+  /*
+    Keep words and punctuation separate.
+  */
 
-    const row = document.createElement("div");
-
-    row.className = "word-row";
-
-
-    const english = document.createElement("div");
-
-    english.className = "english-word";
-
-    english.textContent = word;
+  const tokens =
+    text.match(/[A-Za-z]+(?:['-][A-Za-z]+)*|[^A-Za-z\s]+/g)
+    || [];
 
 
-    const steno = document.createElement("div");
+  tokens.forEach(function(token) {
 
-    steno.className = "steno-placeholder";
+    /*
+      Ignore punctuation for now.
+    */
 
-    steno.textContent =
-      "[ Gregg " + series.value + " outline will appear here ]";
+    if (!/[A-Za-z]/.test(token)) {
+
+      return;
+
+    }
+
+
+    const row =
+      document.createElement("div");
+
+    row.className =
+      "word-row";
+
+
+    const english =
+      document.createElement("div");
+
+    english.className =
+      "english-word";
+
+    english.textContent =
+      token;
+
+
+    const gregg =
+      createGreggImage(token);
 
 
     row.appendChild(english);
 
-    row.appendChild(steno);
+    row.appendChild(gregg);
+
 
     output.appendChild(row);
 
@@ -221,12 +618,45 @@ function updateOutput() {
 }
 
 
-textInput.addEventListener("input", updateOutput);
+/*
+==========================================================
+EVENTS
+==========================================================
+*/
 
-series.addEventListener("change", updateOutput);
+document
+  .getElementById("textInput")
+  .addEventListener(
+    "input",
+    updateOutput
+  );
 
 
-updateOutput();
+document
+  .getElementById("series")
+  .addEventListener(
+    "change",
+    async function() {
+
+      currentSeries =
+        this.value;
+
+
+      await loadDictionary(
+        currentSeries
+      );
+
+    }
+  );
+
+
+/*
+==========================================================
+START
+==========================================================
+*/
+
+loadDictionary("Anniversary");
 
 </script>
 
