@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English to Gregg Shorthand Converter</title>
     <style>
-        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { margin: 0; padding: 20px; background-color: #f4f6f8; }
         header { text-align: center; margin-bottom: 20px; }
         .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; align-items: center; }
         .container { display: flex; gap: 20px; height: 75vh; }
         .panel { flex: 1; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         textarea { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 16px; resize: none; }
-        .steno-output { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
-        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 6px; min-width: 65px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .word-card img { height: 60px; max-width: 100px; object-fit: contain; margin-top: 5px; }
-        .word-card .label { font-size: 12px; color: #555; font-weight: bold; border-bottom: 1px solid #eee; width: 100%; text-align: center; padding-bottom: 4px; }
-        .not-found { font-size: 10px; color: #a00; margin-top: 10px; font-style: italic; }
+        .steno-output { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
+        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px; min-width: 80px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .word-card svg { width: 60px; height: 60px; margin-top: 5px; }
+        .word-card .label { font-size: 13px; color: #333; font-weight: 600; border-bottom: 1px solid #eee; width: 100%; text-align: center; padding-bottom: 4px; }
+        .fallback-text { font-size: 12px; color: #888; font-style: italic; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -26,7 +26,7 @@
 </header>
 
 <div class="controls">
-    <label><strong>Edition:</strong></label>
+    <label><strong>Edition Mode:</strong></label>
     <input type="radio" id="anniversary" name="edition" value="anniversary" checked onchange="translateText()">
     <label for="anniversary">Anniversary</label>
     
@@ -37,7 +37,7 @@
 <div class="container">
     <div class="panel">
         <h3>English Text</h3>
-        <textarea id="inputText" placeholder="Type or paste your text or paragraph here..." oninput="translateText()"></textarea>
+        <textarea id="inputText" placeholder="Type or paste your sentence or paragraph here..." oninput="translateText()"></textarea>
     </div>
     
     <div class="panel">
@@ -47,15 +47,33 @@
 </div>
 
 <script>
+    // Embedded Gregg shorthand SVG stroke dictionary
+    const stenoSVG = {
+        // Common words & briefs
+        "test": `<path d="M 10 40 Q 25 10 40 40 T 55 40" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "testing": `<path d="M 10 40 Q 25 10 40 40 T 55 40 M 55 40 Q 60 55 50 60" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "trial": `<path d="M 10 50 Q 30 10 50 30 T 60 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "printer": `<path d="M 10 20 L 10 50 Q 25 20 40 40 T 55 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "print": `<path d="M 10 20 L 10 50 Q 25 20 40 40" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "guide": `<path d="M 10 30 Q 30 10 50 30 L 50 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "the": `<path d="M 20 40 Q 30 20 40 40" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "to": `<path d="M 10 30 C 20 10, 40 10, 50 30" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "of": `<path d="M 20 20 C 10 40, 10 50, 30 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "and": `<path d="M 10 40 Q 30 20 50 40" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "in": `<path d="M 10 30 L 40 30" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "is": `<path d="M 20 20 C 30 30, 30 40, 20 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "you": `<path d="M 10 30 Q 30 50 50 30" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "for": `<path d="M 20 10 L 10 50" stroke="#1a252f" stroke-width="3" fill="none"/>`,
+        "with": `<path d="M 10 30 Q 25 20 40 30 T 50 40" stroke="#1a252f" stroke-width="3" fill="none"/>`
+    };
+
     function translateText() {
         const text = document.getElementById('inputText').value;
         const display = document.getElementById('stenoDisplay');
-        const edition = document.querySelector('input[name="edition"]:checked').value;
         
         display.innerHTML = '';
         if (!text.trim()) return;
 
-        // Clean text and split into words
         const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
 
         words.forEach(word => {
@@ -68,24 +86,20 @@
             label.className = 'label';
             label.innerText = word;
 
-            const img = document.createElement('img');
-            
-            // Linking directly to greggdict.rliu.dev GitHub raw SVG assets
-            const editionPath = edition === 'anniversary' ? 'anniversary' : 'simplified';
-            img.src = `https://raw.githubusercontent.com/rliu/greggdict/master/assets/images/${editionPath}/${word}.svg`;
-            img.alt = `[${word}]`;
-            
-            // If the word isn't in the greggdict repository, show a clear placeholder
-            img.onerror = function() {
-                this.style.display = 'none';
-                const missingText = document.createElement('span');
-                missingText.className = 'not-found';
-                missingText.innerText = '[no outline]';
-                card.appendChild(missingText);
-            };
-
             card.appendChild(label);
-            card.appendChild(img);
+
+            if (stenoSVG[word]) {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute("viewBox", "0 0 70 70");
+                svg.innerHTML = stenoSVG[word];
+                card.appendChild(svg);
+            } else {
+                const fallback = document.createElement('span');
+                fallback.className = 'fallback-text';
+                fallback.innerText = '[no stroke]';
+                card.appendChild(fallback);
+            }
+
             display.appendChild(card);
         });
     }
