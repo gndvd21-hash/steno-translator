@@ -1,659 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Gregg Transcriber</title>
+<title>Gregg Shorthand Converter</title>
 
-  <style>
+<style>
     * {
-      box-sizing: border-box;
+        box-sizing: border-box;
     }
 
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      color: #222;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        color: #222;
     }
 
-    header {
-      background: white;
-      padding: 18px 30px;
-      border-bottom: 1px solid #ddd;
-
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 25px;
     }
 
-    header h1 {
-      margin: 0;
-      font-size: 24px;
+    h1 {
+        text-align: center;
+        margin-bottom: 20px;
     }
 
-    select {
-      padding: 9px 14px;
-      font-size: 15px;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      background: white;
+    .controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
     }
 
-    main {
-      max-width: 1400px;
-      margin: 25px auto;
-      padding: 0 20px;
+    button {
+        padding: 10px 18px;
+        border: 1px solid #aaa;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        font-size: 15px;
     }
 
-    .workspace {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    .panel {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .panel-title {
-      padding: 14px 18px;
-      font-weight: bold;
-      border-bottom: 1px solid #ddd;
-      background: #fafafa;
+    button.active {
+        background: #222;
+        color: white;
     }
 
     textarea {
-      width: 100%;
-      height: 550px;
+        width: 100%;
+        min-height: 130px;
+        resize: vertical;
+        padding: 15px;
+        font-size: 18px;
+        border: 1px solid #bbb;
+        border-radius: 10px;
+        outline: none;
+    }
 
-      padding: 20px;
-
-      border: none;
-      outline: none;
-      resize: vertical;
-
-      font-size: 18px;
-      line-height: 1.6;
-      font-family: Arial, sans-serif;
+    .output-title {
+        margin-top: 25px;
+        margin-bottom: 10px;
+        font-size: 20px;
+        font-weight: bold;
     }
 
     #output {
-      height: 550px;
-      overflow-y: auto;
-      padding: 20px;
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        min-height: 150px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 10px;
     }
 
-    .word-row {
-      display: grid;
-      grid-template-columns: 150px 1fr;
-
-      gap: 15px;
-
-      padding: 15px 0;
-
-      border-bottom: 1px solid #eee;
-
-      align-items: center;
+    .word-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 10px;
     }
 
-    .english-word {
-      font-weight: bold;
-      font-size: 17px;
+    .word-label {
+        font-size: 12px;
+        color: #777;
+        margin-bottom: 3px;
     }
+
+    /*
+       Richy Liu's original dictionary uses:
+       small display = 365 x 100
+       source image width = 1281
+    */
 
     .gregg-box {
-      width: 500px;
-      height: 105px;
-
-      position: relative;
-
-      overflow: hidden;
-
-      border: 1px solid #ddd;
-      border-radius: 6px;
-
-      background: white;
+        width: 365px;
+        height: 100px;
+        overflow: hidden;
+        position: relative;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
     }
 
-    .gregg-image {
-      position: absolute;
-
-      width: 1100px;
-
-      max-width: none;
-
-      pointer-events: none;
-
-      user-select: none;
+    .gregg-page {
+        position: absolute;
+        width: 1281px;
+        max-width: none;
+        height: auto;
+        user-select: none;
+        pointer-events: none;
     }
 
-    .loading {
-      color: #888;
-      font-style: italic;
-      padding: 20px;
-    }
-
-    .not-found {
-      color: #999;
-      font-size: 14px;
-      padding: 20px 0;
-    }
-
-    .error {
-      color: #b00020;
-      font-size: 14px;
-      padding: 20px;
+    .unknown {
+        width: auto;
+        height: 100px;
+        min-width: 80px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #aaa;
+        border-radius: 5px;
+        color: #888;
+        font-size: 14px;
     }
 
     .status {
-      margin-top: 15px;
-      font-size: 14px;
-      color: #666;
+        text-align: center;
+        color: #777;
+        margin-top: 15px;
     }
 
-    @media (max-width: 900px) {
-
-      .workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .gregg-box {
-        width: 100%;
-      }
-
-      .word-row {
-        grid-template-columns: 120px 1fr;
-      }
-
+    .error {
+        color: #b00020;
     }
-  </style>
+</style>
 </head>
-
 
 <body>
 
-<header>
+<div class="container">
 
-  <h1>Gregg Transcriber</h1>
+    <h1>Gregg Shorthand Converter</h1>
 
-  <div>
+    <div class="controls">
+        <button id="anniversaryBtn" class="active">
+            Gregg Anniversary
+        </button>
 
-    <label for="series">
-      Gregg Series:
-    </label>
-
-    <select id="series">
-
-      <option value="Anniversary">
-        Anniversary
-      </option>
-
-      <option value="Simplified">
-        Simplified
-      </option>
-
-    </select>
-
-  </div>
-
-</header>
-
-
-<main>
-
-  <div class="workspace">
-
-
-    <!-- LEFT -->
-
-    <div class="panel">
-
-      <div class="panel-title">
-        English / Text
-      </div>
-
-      <textarea
-        id="textInput"
-        placeholder="Type or paste your English text here..."
-      >The court is now in session.
-
-Please take note of the proceedings.</textarea>
-
+        <button id="simplifiedBtn">
+            Gregg Simplified
+        </button>
     </div>
 
+    <textarea
+        id="inputText"
+        placeholder="Type English text here...
 
-    <!-- RIGHT -->
+Example:
+The sister will tell him."
+    ></textarea>
 
-    <div class="panel">
+    <div class="output-title">
+        Gregg Outlines
+    </div>
 
-      <div class="panel-title">
-        Gregg Shorthand
-      </div>
-
-      <div id="output">
-
-        <div class="loading">
-          Loading Gregg dictionary...
+    <div id="output">
+        <div class="status">
+            Type something above.
         </div>
-
-      </div>
-
     </div>
 
-
-  </div>
-
-
-  <div class="status" id="status">
-    Loading dictionary...
-  </div>
-
-
-</main>
-
+</div>
 
 <script>
 
-/*
-==========================================================
-GREGG DICTIONARY CONFIGURATION
-==========================================================
-*/
+const REPO_BASE =
+    "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
 
-const BASE_URL =
-  "https://raw.githubusercontent.com/richyliu/greggdict/master/assets";
+const dictionaries = {
+    Anniversary: {
+        reference:
+            REPO_BASE + "Anniversary/reference.json",
 
+        pages:
+            REPO_BASE + "Anniversary/pages/"
+    },
 
-const CONFIG = {
+    Simplified: {
+        reference:
+            REPO_BASE + "Simplified/reference.json",
 
-  Anniversary: {
-    reference:
-      BASE_URL + "/Anniversary/reference.json",
-
-    pages:
-      BASE_URL + "/Anniversary/pages/"
-  },
-
-  Simplified: {
-    reference:
-      BASE_URL + "/Simplified/reference.json",
-
-    pages:
-      BASE_URL + "/Simplified/pages/"
-  }
-
+        pages:
+            REPO_BASE + "Simplified/pages/"
+    }
 };
 
+let currentDictionary = "Anniversary";
 
-/*
-==========================================================
-GLOBAL VARIABLES
-==========================================================
-*/
+let dictionary = {};
 
-let dictionaries = {};
-
-let currentSeries = "Anniversary";
+let loadingDictionary = false;
 
 
 /*
-==========================================================
+=========================================================
 LOAD DICTIONARY
-==========================================================
+=========================================================
 */
 
-async function loadDictionary(series) {
+async function loadDictionary(type) {
 
-  const status =
-    document.getElementById("status");
+    if (loadingDictionary) return;
 
-  status.textContent =
-    "Loading " + series + " dictionary...";
+    loadingDictionary = true;
 
+    showStatus("Loading " + type + " dictionary...");
 
-  try {
+    try {
 
-    const response =
-      await fetch(CONFIG[series].reference);
+        const response =
+            await fetch(dictionaries[type].reference);
 
+        if (!response.ok) {
+            throw new Error(
+                "Could not load dictionary reference."
+            );
+        }
 
-    if (!response.ok) {
+        const data = await response.json();
 
-      throw new Error(
-        "Dictionary could not be loaded."
-      );
+        dictionary = {};
 
+        /*
+        Richy Liu's reference file is:
+
+        [
+            {
+                page: "001",
+                words: [
+                    {
+                        t: "word",
+                        x: 123,
+                        y: 456
+                    }
+                ]
+            }
+        ]
+        */
+
+        data.forEach(pageData => {
+
+            const page = pageData.page;
+
+            pageData.words.forEach(entry => {
+
+                const word =
+                    entry.t.toLowerCase().trim();
+
+                /*
+                Exact lookup.
+
+                This means:
+
+                tell
+
+                will NOT match:
+
+                teller
+                telling
+                tellurium
+                */
+
+                if (!dictionary[word]) {
+
+                    dictionary[word] = {
+                        word: entry.t,
+                        page: page,
+                        x: entry.x,
+                        y: entry.y
+                    };
+
+                }
+
+            });
+
+        });
+
+        currentDictionary = type;
+
+        loadingDictionary = false;
+
+        renderText();
+
+    } catch (error) {
+
+        console.error(error);
+
+        loadingDictionary = false;
+
+        showStatus(
+            "Unable to load the " +
+            type +
+            " dictionary.",
+            true
+        );
     }
+}
 
 
-    const data =
-      await response.json();
+/*
+=========================================================
+DISPLAY STATUS
+=========================================================
+*/
+
+function showStatus(message, error = false) {
+
+    const output =
+        document.getElementById("output");
+
+    output.innerHTML =
+        `<div class="status ${error ? "error" : ""}">
+            ${message}
+        </div>`;
+}
+
+
+/*
+=========================================================
+NORMALIZE WORD
+=========================================================
+*/
+
+function normalizeWord(word) {
+
+    return word
+        .toLowerCase()
+        .trim();
+
+}
+
+
+/*
+=========================================================
+CREATE GREGG IMAGE
+=========================================================
+*/
+
+function createGreggImage(entry) {
+
+    /*
+    Richy Liu's original ImageDisplay:
+
+        DISPLAY_SIZE_SMALL
+        x = 365
+        y = 100
+
+        IMG_WIDTH = 1281
+
+    The reference coordinates are based on
+    the original dictionary image.
+    */
+
+    const box =
+        document.createElement("div");
+
+    box.className =
+        "gregg-box";
+
+
+    const image =
+        document.createElement("img");
+
+    image.className =
+        "gregg-page";
+
+    image.draggable = false;
+
+
+    image.src =
+        dictionaries[currentDictionary].pages +
+        entry.page +
+        ".png";
 
 
     /*
-      Convert the dictionary into:
+    The reference coordinates are on the
+    original 1281px-wide image.
 
-      word -> page + x + y
+    We position the image so the requested
+    dictionary entry appears inside the
+    365x100 viewing window.
     */
 
-    const lookup = {};
+    image.style.left =
+        (182.5 - entry.x) + "px";
+
+    image.style.top =
+        (50 - entry.y) + "px";
 
 
-    data.forEach(function(page) {
+    image.onerror = function() {
 
-      page.words.forEach(function(entry) {
+        box.innerHTML =
+            "<div class='unknown'>" +
+            "Image unavailable" +
+            "</div>";
 
-        lookup[
-          entry.t.toLowerCase()
-        ] = {
+    };
 
-          page: page.page,
 
-          x: entry.x,
+    box.appendChild(image);
 
-          y: entry.y
+    return box;
+}
 
-        };
 
-      });
+/*
+=========================================================
+CREATE WORD RESULT
+=========================================================
+*/
+
+function createWordElement(word) {
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "word-container";
+
+
+    const label =
+        document.createElement("div");
+
+    label.className =
+        "word-label";
+
+    label.textContent =
+        word;
+
+
+    wrapper.appendChild(label);
+
+
+    const normalized =
+        normalizeWord(word);
+
+
+    /*
+    EXACT MATCH ONLY
+    */
+
+    const entry =
+        dictionary[normalized];
+
+
+    if (!entry) {
+
+        const unknown =
+            document.createElement("div");
+
+        unknown.className =
+            "unknown";
+
+        unknown.textContent =
+            "No outline";
+
+        wrapper.appendChild(unknown);
+
+        return wrapper;
+    }
+
+
+    const image =
+        createGreggImage(entry);
+
+    wrapper.appendChild(image);
+
+
+    return wrapper;
+}
+
+
+/*
+=========================================================
+RENDER TEXT
+=========================================================
+*/
+
+function renderText() {
+
+    const input =
+        document.getElementById("inputText");
+
+    const output =
+        document.getElementById("output");
+
+
+    const text =
+        input.value.trim();
+
+
+    if (!text) {
+
+        output.innerHTML =
+            `<div class="status">
+                Type something above.
+            </div>`;
+
+        return;
+    }
+
+
+    if (
+        !dictionary ||
+        Object.keys(dictionary).length === 0
+    ) {
+
+        showStatus(
+            "Dictionary is still loading..."
+        );
+
+        return;
+    }
+
+
+    output.innerHTML = "";
+
+
+    /*
+    Split text into words.
+
+    Punctuation is removed ONLY for the
+    dictionary lookup, while the original
+    word is still displayed as the label.
+    */
+
+    const words =
+        text.split(/\s+/);
+
+
+    words.forEach(originalWord => {
+
+        const lookupWord =
+            originalWord
+                .replace(
+                    /^[^a-zA-Z]+|[^a-zA-Z]+$/g,
+                    ""
+                );
+
+
+        if (!lookupWord) {
+            return;
+        }
+
+
+        const element =
+            createWordElement(lookupWord);
+
+
+        output.appendChild(element);
 
     });
 
-
-    dictionaries[series] = lookup;
-
-
-    status.textContent =
-      series +
-      " dictionary loaded: " +
-      Object.keys(lookup).length.toLocaleString() +
-      " entries.";
-
-
-    updateOutput();
-
-  }
-
-  catch (error) {
-
-    console.error(error);
-
-    status.textContent =
-      "Could not load " +
-      series +
-      " dictionary.";
-
-    document.getElementById("output").innerHTML =
-
-      '<div class="error">' +
-
-      'Unable to load the Gregg dictionary. ' +
-
-      '<br><br>' +
-
-      'Make sure you are viewing this through GitHub Pages ' +
-
-      'or a web server, not directly from a local file.' +
-
-      '</div>';
-
-  }
-
 }
 
 
 /*
-==========================================================
-CREATE GREGG IMAGE
-==========================================================
+=========================================================
+BUTTONS
+=========================================================
 */
 
-function createGreggImage(word) {
-
-  const dictionary =
-    dictionaries[currentSeries];
-
-
-  if (!dictionary) {
-
-    return createMessage(
-      "Dictionary is still loading..."
+const anniversaryBtn =
+    document.getElementById(
+        "anniversaryBtn"
     );
 
-  }
-
-
-  const entry =
-    dictionary[word.toLowerCase()];
-
-
-  if (!entry) {
-
-    return createMessage(
-      "No dictionary entry found"
+const simplifiedBtn =
+    document.getElementById(
+        "simplifiedBtn"
     );
 
-  }
 
-
-  /*
-    Dictionary coordinates are based on
-    the original scanned page.
-
-    We display the page at 50% scale.
-  */
-
-  const scale = 0.5;
-
-
-  const box =
-    document.createElement("div");
-
-  box.className =
-    "gregg-box";
-
-
-  const image =
-    document.createElement("img");
-
-  image.className =
-    "gregg-image";
-
-
-  image.src =
-    CONFIG[currentSeries].pages +
-    entry.page +
-    ".png";
-
-
-  /*
-    Position the dictionary page so the
-    requested word appears in the box.
-  */
-
-  const centerX =
-    entry.x * scale;
-
-
-  const centerY =
-    entry.y * scale;
-
-
-  image.style.left =
-    (250 - centerX) + "px";
-
-
-  image.style.top =
-    (52 - centerY) + "px";
-
-
-  image.alt =
-    "Gregg " +
-    currentSeries +
-    " outline for " +
-    word;
-
-
-  image.onerror = function() {
-
-    box.innerHTML =
-      '<div class="not-found">' +
-      'Image could not be loaded.' +
-      '</div>';
-
-  };
-
-
-  box.appendChild(image);
-
-
-  return box;
-
-}
-
-
-/*
-==========================================================
-MESSAGE
-==========================================================
-*/
-
-function createMessage(text) {
-
-  const box =
-    document.createElement("div");
-
-  box.className =
-    "gregg-box";
-
-
-  box.innerHTML =
-    '<div class="not-found">' +
-    text +
-    '</div>';
-
-
-  return box;
-
-}
-
-
-/*
-==========================================================
-UPDATE OUTPUT
-==========================================================
-*/
-
-function updateOutput() {
-
-  const text =
-    document.getElementById("textInput").value;
-
-
-  const output =
-    document.getElementById("output");
-
-
-  output.innerHTML = "";
-
-
-  /*
-    Keep words and punctuation separate.
-  */
-
-  const tokens =
-    text.match(/[A-Za-z]+(?:['-][A-Za-z]+)*|[^A-Za-z\s]+/g)
-    || [];
-
-
-  tokens.forEach(function(token) {
-
-    /*
-      Ignore punctuation for now.
-    */
-
-    if (!/[A-Za-z]/.test(token)) {
-
-      return;
-
-    }
-
-
-    const row =
-      document.createElement("div");
-
-    row.className =
-      "word-row";
-
-
-    const english =
-      document.createElement("div");
-
-    english.className =
-      "english-word";
-
-    english.textContent =
-      token;
-
-
-    const gregg =
-      createGreggImage(token);
-
-
-    row.appendChild(english);
-
-    row.appendChild(gregg);
-
-
-    output.appendChild(row);
-
-  });
-
-}
-
-
-/*
-==========================================================
-EVENTS
-==========================================================
-*/
-
-document
-  .getElementById("textInput")
-  .addEventListener(
-    "input",
-    updateOutput
-  );
-
-
-document
-  .getElementById("series")
-  .addEventListener(
-    "change",
+anniversaryBtn.addEventListener(
+    "click",
     async function() {
 
-      currentSeries =
-        this.value;
+        anniversaryBtn.classList.add("active");
 
+        simplifiedBtn.classList.remove("active");
 
-      await loadDictionary(
-        currentSeries
-      );
+        await loadDictionary("Anniversary");
 
     }
-  );
+);
+
+
+simplifiedBtn.addEventListener(
+    "click",
+    async function() {
+
+        simplifiedBtn.classList.add("active");
+
+        anniversaryBtn.classList.remove("active");
+
+        await loadDictionary("Simplified");
+
+    }
+);
 
 
 /*
-==========================================================
+=========================================================
+LIVE TEXT INPUT
+=========================================================
+*/
+
+document
+    .getElementById("inputText")
+    .addEventListener(
+        "input",
+        renderText
+    );
+
+
+/*
+=========================================================
 START
-==========================================================
+=========================================================
 */
 
 loadDictionary("Anniversary");
