@@ -5,27 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English to Gregg Shorthand Translator</title>
     <style>
-        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { margin: 0; padding: 20px; background-color: #f4f6f8; }
-        header { text-align: center; margin-bottom: 20px; }
+        header { text-align: center; margin-bottom: 15px; }
+        .status-bar { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 15px; color: #d9534f; }
         .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; align-items: center; }
         .container { display: flex; gap: 20px; height: 75vh; }
         .panel { flex: 1; background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         textarea { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 16px; resize: none; }
         .steno-output { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
-        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 6px; min-width: 80px; max-width: 150px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .word-card { display: flex; flex-direction: column; align-items: center; background: #fff; padding: 6px; border: 1px solid #ddd; border-radius: 6px; min-width: 90px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .word-card .label { font-size: 13px; color: #333; font-weight: bold; border-bottom: 1px solid #eee; width: 100%; text-align: center; padding-bottom: 4px; }
-        .steno-crop { width: 100px; height: 60px; overflow: hidden; position: relative; margin-top: 5px; border: 1px dashed #ccc; background-color: #fff; }
-        .steno-crop img { position: absolute; max-width: none; }
-        .no-match { font-size: 11px; color: #999; margin-top: 20px; font-style: italic; }
-        .loading-status { font-size: 12px; color: #007bff; text-align: center; margin-bottom: 10px; }
+        .steno-crop { width: 110px; height: 60px; overflow: hidden; position: relative; margin-top: 5px; border: 1px solid #eee; background-color: #fff; display: flex; justify-content: center; align-items: center; }
+        .steno-crop img { position: absolute; max-width: none; filter: contrast(140%); }
+        .no-match { font-size: 11px; color: #888; font-style: italic; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <header>
     <h2>English to Gregg Shorthand Translator</h2>
-    <div id="status" class="loading-status">Loading Gregg Dictionary index...</div>
+    <div id="status" class="status-bar">Loading Gregg dictionary assets...</div>
 </header>
 
 <div class="controls">
@@ -40,7 +40,7 @@
 <div class="container">
     <div class="panel">
         <h3>English Text</h3>
-        <textarea id="inputText" placeholder="Type or paste your sentence or paragraph here..." oninput="translateText()"></textarea>
+        <textarea id="inputText" placeholder="Type or paste your text or paragraph here..." oninput="translateText()"></textarea>
     </div>
     
     <div class="panel">
@@ -51,21 +51,23 @@
 
 <script>
     let dictData = { anniversary: [], simplified: [] };
+    const CDN_BASE = 'https://cdn.jsdelivr.net/gh/richyliu/greggdict@master';
 
-    // Fetch raw dictionary data directly from richyliu/greggdict repository
+    // Load data via jsDelivr CDN to avoid CORS issues
     async function loadDictionaries() {
+        const statusEl = document.getElementById('status');
         try {
             const [annRes, simRes] = await Promise.all([
-                fetch('https://raw.githubusercontent.com/richyliu/greggdict/master/src/anniversary.json'),
-                fetch('https://raw.githubusercontent.com/richyliu/greggdict/master/src/simplified.json')
+                fetch(`${CDN_BASE}/src/anniversary.json`),
+                fetch(`${CDN_BASE}/src/simplified.json`)
             ]);
             dictData.anniversary = await annRes.json();
             dictData.simplified = await simRes.json();
-            document.getElementById('status').innerText = 'Dictionary Loaded! Type below to translate.';
-            document.getElementById('status').style.color = 'green';
+            statusEl.innerText = 'Ready! Type in the box below.';
+            statusEl.style.color = '#28a745';
         } catch (err) {
-            document.getElementById('status').innerText = 'Failed to load dictionary data.';
-            document.getElementById('status').style.color = 'red';
+            statusEl.innerText = 'Could not download dictionary assets. Please check internet connection.';
+            statusEl.style.color = '#dc3545';
         }
     }
 
@@ -91,17 +93,17 @@
             label.innerText = word;
             card.appendChild(label);
 
-            // Find matching word in richyliu's JSON dictionary
-            const match = currentDict.find(item => item.word.toLowerCase() === word);
+            // Match word in loaded JSON
+            const match = currentDict.find(item => item.word && item.word.toLowerCase() === word);
 
             if (match && match.image) {
                 const cropBox = document.createElement('div');
                 cropBox.className = 'steno-crop';
 
                 const img = document.createElement('img');
-                img.src = `https://raw.githubusercontent.com/richyliu/greggdict/master/src/images/${match.image}`;
+                img.src = `${CDN_BASE}/src/images/${match.image}`;
                 
-                // Align image crop based on dictionary entry coordinates
+                // Crop scanned entry using coordinates stored in dictionary
                 if (match.bounds) {
                     img.style.left = `-${match.bounds.x}px`;
                     img.style.top = `-${match.bounds.y}px`;
