@@ -3,178 +3,160 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Gregg Shorthand Translator</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"
+        type="module"></script>
+
 <style>
-    * {
-        box-sizing: border-box;
-    }
+* {
+    box-sizing: border-box;
+}
 
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f6f8;
-        color: #222;
-    }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    color: #222;
+}
 
-    .container {
-        max-width: 1200px;
-        margin: auto;
-        padding: 25px;
-    }
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 25px;
+}
 
-    h1 {
-        margin-top: 0;
-        margin-bottom: 5px;
-    }
+h1 {
+    margin: 0 0 4px;
+}
 
-    .subtitle {
-        color: #666;
-        margin-bottom: 20px;
-    }
+.subtitle {
+    color: #666;
+    margin-bottom: 20px;
+}
 
-    textarea {
-        width: 100%;
-        min-height: 130px;
-        resize: vertical;
-        padding: 15px;
-        border: 1px solid #ccc;
-        border-radius: 10px;
-        font-size: 18px;
-        outline: none;
-    }
+textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 15px;
+    font-size: 18px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    resize: vertical;
+}
 
-    textarea:focus {
-        border-color: #777;
-    }
+.controls {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    align-items: center;
+    flex-wrap: wrap;
+}
 
-    .controls {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-        margin: 15px 0 20px;
-    }
+select,
+button {
+    padding: 10px 14px;
+    font-size: 15px;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+}
 
-    select,
-    button {
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid #bbb;
-        background: white;
-        font-size: 15px;
-        cursor: pointer;
-    }
+button:hover {
+    background: #eee;
+}
 
-    button:hover {
-        background: #eee;
-    }
+#status {
+    color: #666;
+    margin: 10px 0 15px;
+}
 
-    #status {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 15px;
-    }
+.results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 15px;
+}
 
-    .results {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
-    }
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    overflow: hidden;
+}
 
-    .card {
-        background: white;
-        border-radius: 12px;
-        padding: 15px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.08);
-        overflow: hidden;
-    }
+.title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
 
-    .word {
-        font-size: 20px;
-        font-weight: bold;
-        margin-bottom: 5px;
-        text-transform: lowercase;
-    }
+.source {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 10px;
+}
 
-    .source {
-        font-size: 12px;
-        color: #888;
-        margin-bottom: 10px;
-    }
+.outline {
+    width: 100%;
+    height: 150px;
+    overflow: hidden;
+    position: relative;
+    background: white;
+}
 
-    .outline {
-        width: 100%;
-        height: 150px;
-        overflow: hidden;
-        position: relative;
-        background: #fff;
-        border-radius: 8px;
-    }
+.outline img {
+    position: absolute;
+    max-width: none;
+}
 
-    .outline img {
-        position: absolute;
-        max-width: none;
-        user-select: none;
-        pointer-events: none;
-    }
+.missing {
+    color: #999;
+    font-style: italic;
+    padding: 30px 5px;
+    text-align: center;
+}
 
-    .missing {
-        color: #999;
-        font-style: italic;
-        padding: 30px 5px;
-        text-align: center;
-    }
+.pdf-card {
+    grid-column: 1 / -1;
+    background: #fffdf1;
+    border: 1px solid #e5d98c;
+}
 
-    .phrase-card {
-        grid-column: 1 / -1;
-        background: #fffdf3;
-        border: 1px solid #eadf9d;
-    }
+.pdf-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
 
-    .phrase-title {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 4px;
-    }
+.pdf-info {
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
 
-    .phrase-note {
-        font-size: 13px;
-        color: #777;
-        margin-bottom: 12px;
-    }
+.pdf-crop {
+    width: 100%;
+    min-height: 220px;
+    overflow: auto;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-align: center;
+}
 
-    .phrase-words {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
+.pdf-crop canvas {
+    max-width: 100%;
+    height: auto;
+}
 
-    .mini-word {
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 8px;
-        width: 180px;
-    }
-
-    .mini-word-title {
-        font-weight: bold;
-        font-size: 14px;
-        margin-bottom: 5px;
-    }
-
-    .mini-outline {
-        height: 90px;
-        overflow: hidden;
-        position: relative;
-        background: white;
-    }
-
-    .mini-outline img {
-        position: absolute;
-        max-width: none;
-    }
+.pdf-failed {
+    padding: 25px;
+    color: #999;
+    text-align: center;
+}
 </style>
 </head>
 
@@ -182,47 +164,69 @@
 
 <div class="container">
 
-    <h1>Gregg Shorthand Translator</h1>
+<h1>Gregg Shorthand Translator</h1>
 
-    <div class="subtitle">
-        English → Gregg Shorthand
-    </div>
+<div class="subtitle">
+English → Gregg Shorthand
+</div>
 
-    <textarea id="inputText"
-        placeholder="Type something...&#10;&#10;Example: dear sir i am ready to do things"></textarea>
+<textarea id="inputText"
+placeholder="Try: dear sir i am ready"></textarea>
 
-    <div class="controls">
+<div class="controls">
 
-        <label>
-            Series:
-            <select id="series">
-                <option value="Anniversary">Anniversary</option>
-                <option value="Simplified">Simplified</option>
-            </select>
-        </label>
+<label>
+Series:
+<select id="series">
+<option value="Anniversary">Anniversary</option>
+<option value="Simplified">Simplified</option>
+</select>
+</label>
 
-        <button id="translateBtn">Translate</button>
+<button id="translateBtn">Translate</button>
 
-        <button id="clearBtn">Clear</button>
-
-    </div>
-
-    <div id="status">
-        Loading Gregg dictionary...
-    </div>
-
-    <div id="results" class="results"></div>
+<button id="clearBtn">Clear</button>
 
 </div>
 
-<script>
+<div id="status">
+Loading...
+</div>
 
-/* ============================================================
-   GREGGDICT
-   ============================================================ */
+<div id="results" class="results"></div>
 
-const BASE =
+</div>
+
+
+<script type="module">
+
+/* =========================================================
+   PDF.JS
+   ========================================================= */
+
+import * as pdfjsLib
+from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+
+/* =========================================================
+   SOURCES
+   ========================================================= */
+
+const GREGG_BASE =
     "https://raw.githubusercontent.com/richyliu/greggdict/master/assets/";
+
+const MANUAL_PDF =
+    "./Gregg%20Shorthand%20Manual%20(1929)%20(1).pdf";
+
+
+/* =========================================================
+   GREGGDICT SETTINGS
+   ========================================================= */
+
+const IMG_WIDTH = 1281;
 
 const DISPLAY_SIZE = {
     x: 365,
@@ -230,164 +234,52 @@ const DISPLAY_SIZE = {
     offset: 5
 };
 
-const DISPLAY_SIZE_LARGE = {
-    x: 450,
-    y: 180,
-    offset: 10
-};
 
-const IMG_WIDTH = 1281;
+/* =========================================================
+   DATA
+   ========================================================= */
 
+let dictionary = [];
 
-/* ============================================================
-   DICTIONARIES
-   ============================================================ */
-
-let dictionaries = {
-    Anniversary: [],
-    Simplified: []
-};
+let pdfDocument = null;
 
 
-/* ============================================================
-   COMMON ANNIVERSARY PHRASES
-   These are phrase recognizers only.
-   The actual outlines still come from greggdict.
-   ============================================================ */
-
-const COMMON_PHRASES = [
-
-    "dear sir",
-    "dear madam",
-    "i am",
-    "i am not",
-    "i can",
-    "i cannot",
-    "i do",
-    "i do not",
-    "i will",
-    "i will not",
-    "i shall",
-    "i shall not",
-    "i have",
-    "i have not",
-
-    "you are",
-    "you are not",
-    "you can",
-    "you cannot",
-    "you will",
-    "you will not",
-    "you have",
-    "you have not",
-
-    "we are",
-    "we are not",
-    "we will",
-    "we will not",
-    "we shall",
-    "we shall not",
-    "we can",
-    "we cannot",
-    "we have",
-    "we have not",
-
-    "he was",
-    "he will",
-    "he can",
-
-    "she was",
-    "she will",
-    "she can",
-
-    "to the",
-    "of the",
-    "and the",
-    "that the",
-    "at the",
-    "by the",
-    "in the",
-    "with the",
-
-    "to you",
-    "of you",
-    "to me",
-    "to my",
-
-    "it is",
-    "it was",
-
-    "at once",
-    "in my opinion",
-    "in the first place",
-    "at the same time",
-    "in other words",
-    "once in a while",
-    "as soon as possible",
-    "as a matter of fact"
-];
-
-
-/* ============================================================
-   NORMALIZATION
-   ============================================================ */
-
-function normalizeWord(word) {
-
-    return word
-        .toLowerCase()
-        .replace(/[“”‘’]/g, "")
-        .replace(/^[^a-z]+|[^a-z]+$/gi, "");
-
-}
-
-
-function tokenize(text) {
-
-    return text
-        .split(/\s+/)
-        .map(normalizeWord)
-        .filter(Boolean);
-
-}
-
-
-/* ============================================================
-   LOAD DICTIONARY
-   ============================================================ */
+/* =========================================================
+   LOAD GREGGDICT
+   ========================================================= */
 
 async function loadDictionary(series) {
 
-    if (dictionaries[series].length > 0) {
-        return dictionaries[series];
-    }
-
     const url =
-        BASE + series + "/reference.json?cb=" + Date.now();
+        GREGG_BASE +
+        series +
+        "/reference.json?cb=" +
+        Date.now();
 
-    const response = await fetch(url);
+    const response =
+        await fetch(url);
 
     if (!response.ok) {
         throw new Error(
-            "Could not load " + series + " dictionary."
+            "Could not load Greggdict."
         );
     }
 
-    const data = await response.json();
+    dictionary =
+        await response.json();
 
-    dictionaries[series] = data;
-
-    return data;
+    return dictionary;
 }
 
 
-/* ============================================================
-   FIND WORD
-   ============================================================ */
+/* =========================================================
+   FIND WORD IN GREGGDICT
+   ========================================================= */
 
-function findWord(dictionary, word) {
+function findWord(word) {
 
-    const target = word.toLowerCase();
+    const target =
+        word.toLowerCase();
 
     for (const page of dictionary) {
 
@@ -398,14 +290,14 @@ function findWord(dictionary, word) {
             if (!item.t) continue;
 
             if (
-                item.t.toLowerCase() === target
+                item.t.toLowerCase() ===
+                target
             ) {
 
                 return {
                     page: page.page,
                     x: Number(item.x),
-                    y: Number(item.y),
-                    t: item.t
+                    y: Number(item.y)
                 };
 
             }
@@ -418,348 +310,27 @@ function findWord(dictionary, word) {
 }
 
 
-/* ============================================================
-   DICTIONARY IMAGE
-   ============================================================ */
+/* =========================================================
+   GREGGDICT PAGE
+   ========================================================= */
 
-function dictionaryPageUrl(series, page) {
-
-    const pageNumber =
-        String(page).padStart(3, "0");
+function greggPage(series, page) {
 
     return (
-        BASE +
+        GREGG_BASE +
         series +
         "/pages/" +
-        pageNumber +
+        String(page).padStart(3, "0") +
         ".png"
     );
 }
 
 
-/* ============================================================
-   RENDER WORD
-   ============================================================ */
-
-function renderDictionaryWord(
-    container,
-    series,
-    entry,
-    large = false
-) {
-
-    const displaySize =
-        large
-            ? DISPLAY_SIZE_LARGE
-            : DISPLAY_SIZE;
-
-    const img =
-        document.createElement("img");
-
-    img.src =
-        dictionaryPageUrl(
-            series,
-            entry.page
-        ) +
-        "?cb=" +
-        Date.now();
-
-    img.onload = function () {
-
-        const naturalWidth =
-            img.naturalWidth || IMG_WIDTH;
-
-        const scale =
-            IMG_WIDTH / naturalWidth;
-
-        img.style.width =
-            IMG_WIDTH + "px";
-
-        const top =
-            -(
-                entry.y * scale -
-                displaySize.y / 2
-            );
-
-        const left =
-            -(
-                entry.x * scale -
-                displaySize.offset
-            );
-
-        img.style.top =
-            top + "px";
-
-        img.style.left =
-            left + "px";
-
-    };
-
-    container.appendChild(img);
-}
-
-
-/* ============================================================
-   WORD CARD
-   ============================================================ */
-
-function createWordCard(
-    word,
-    dictionary,
-    series
-) {
-
-    const card =
-        document.createElement("div");
-
-    card.className = "card";
-
-    const title =
-        document.createElement("div");
-
-    title.className = "word";
-
-    title.textContent = word;
-
-    card.appendChild(title);
-
-    const source =
-        document.createElement("div");
-
-    source.className = "source";
-
-    source.textContent =
-        series + " Dictionary";
-
-    card.appendChild(source);
-
-    const outline =
-        document.createElement("div");
-
-    outline.className = "outline";
-
-    card.appendChild(outline);
-
-    const entry =
-        findWord(
-            dictionary,
-            word
-        );
-
-    if (!entry) {
-
-        outline.innerHTML =
-            '<div class="missing">' +
-            'No exact dictionary entry found.' +
-            '</div>';
-
-        return card;
-    }
-
-    renderDictionaryWord(
-        outline,
-        series,
-        entry
-    );
-
-    return card;
-}
-
-
-/* ============================================================
-   PHRASE MATCHING
-   ============================================================ */
-
-function findPhrases(words) {
-
-    const matches = [];
-
-    let i = 0;
-
-    while (i < words.length) {
-
-        let best = null;
-
-        for (
-            const phrase of COMMON_PHRASES
-        ) {
-
-            const parts =
-                phrase.split(" ");
-
-            if (
-                i + parts.length >
-                words.length
-            ) {
-                continue;
-            }
-
-            let same = true;
-
-            for (
-                let j = 0;
-                j < parts.length;
-                j++
-            ) {
-
-                if (
-                    words[i + j] !==
-                    parts[j]
-                ) {
-                    same = false;
-                    break;
-                }
-
-            }
-
-            if (
-                same &&
-                (
-                    !best ||
-                    parts.length >
-                    best.parts.length
-                )
-            ) {
-
-                best = {
-                    text: phrase,
-                    parts: parts,
-                    start: i
-                };
-
-            }
-
-        }
-
-        if (best) {
-
-            matches.push(best);
-
-            i += best.parts.length;
-
-        } else {
-
-            i++;
-
-        }
-
-    }
-
-    return matches;
-}
-
-
-/* ============================================================
-   PHRASE CARD
-   ============================================================ */
-
-function createPhraseCard(
-    phrase,
-    dictionary,
-    series
-) {
-
-    const card =
-        document.createElement("div");
-
-    card.className =
-        "card phrase-card";
-
-    const title =
-        document.createElement("div");
-
-    title.className =
-        "phrase-title";
-
-    title.textContent =
-        phrase.text;
-
-    card.appendChild(title);
-
-    const note =
-        document.createElement("div");
-
-    note.className =
-        "phrase-note";
-
-    note.textContent =
-        "Recognized phrase — individual Greggdict outlines shown below.";
-
-    card.appendChild(note);
-
-    const wordsContainer =
-        document.createElement("div");
-
-    wordsContainer.className =
-        "phrase-words";
-
-    for (
-        const word of phrase.parts
-    ) {
-
-        const box =
-            document.createElement("div");
-
-        box.className =
-            "mini-word";
-
-        const label =
-            document.createElement("div");
-
-        label.className =
-            "mini-word-title";
-
-        label.textContent =
-            word;
-
-        box.appendChild(label);
-
-        const mini =
-            document.createElement("div");
-
-        mini.className =
-            "mini-outline";
-
-        box.appendChild(mini);
-
-        const entry =
-            findWord(
-                dictionary,
-                word
-            );
-
-        if (entry) {
-
-            renderMiniWord(
-                mini,
-                series,
-                entry
-            );
-
-        } else {
-
-            mini.innerHTML =
-                '<div class="missing">' +
-                'Not found' +
-                '</div>';
-
-        }
-
-        wordsContainer.appendChild(box);
-
-    }
-
-    card.appendChild(wordsContainer);
-
-    return card;
-}
-
-
-/* ============================================================
-   MINI WORD RENDERER
-   ============================================================ */
-
-function renderMiniWord(
+/* =========================================================
+   RENDER GREGGDICT WORD
+   ========================================================= */
+
+function renderGreggWord(
     container,
     series,
     entry
@@ -769,20 +340,16 @@ function renderMiniWord(
         document.createElement("img");
 
     img.src =
-        dictionaryPageUrl(
+        greggPage(
             series,
             entry.page
-        ) +
-        "?cb=" +
-        Date.now();
+        );
 
-    img.onload = function () {
-
-        const naturalWidth =
-            img.naturalWidth || IMG_WIDTH;
+    img.onload = function() {
 
         const scale =
-            IMG_WIDTH / naturalWidth;
+            IMG_WIDTH /
+            img.naturalWidth;
 
         img.style.width =
             IMG_WIDTH + "px";
@@ -790,45 +357,539 @@ function renderMiniWord(
         img.style.top =
             -(
                 entry.y * scale -
-                45
+                DISPLAY_SIZE.y / 2
             ) + "px";
 
         img.style.left =
             -(
                 entry.x * scale -
-                5
+                DISPLAY_SIZE.offset
             ) + "px";
-
     };
 
     container.appendChild(img);
 }
 
 
-/* ============================================================
+/* =========================================================
+   WORD CARD
+   ========================================================= */
+
+function createWordCard(
+    word,
+    series
+) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "card";
+
+    const title =
+        document.createElement("div");
+
+    title.className =
+        "title";
+
+    title.textContent =
+        word;
+
+    card.appendChild(title);
+
+    const source =
+        document.createElement("div");
+
+    source.className =
+        "source";
+
+    source.textContent =
+        series + " — Greggdict";
+
+    card.appendChild(source);
+
+    const outline =
+        document.createElement("div");
+
+    outline.className =
+        "outline";
+
+    card.appendChild(outline);
+
+    const entry =
+        findWord(word);
+
+    if (!entry) {
+
+        outline.innerHTML =
+            '<div class="missing">' +
+            'No Greggdict entry' +
+            '</div>';
+
+    } else {
+
+        renderGreggWord(
+            outline,
+            series,
+            entry
+        );
+
+    }
+
+    return card;
+}
+
+
+/* =========================================================
+   NORMALIZE TEXT
+   ========================================================= */
+
+function normalizeText(text) {
+
+    return text
+        .toLowerCase()
+        .replace(/[“”‘’]/g, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+/* =========================================================
+   LOAD PDF
+   ========================================================= */
+
+async function loadManual() {
+
+    if (pdfDocument) {
+        return pdfDocument;
+    }
+
+    document.getElementById("status").textContent =
+        "Loading 1929 Gregg Shorthand Manual...";
+
+    pdfDocument =
+        await pdfjsLib.getDocument(
+            MANUAL_PDF
+        ).promise;
+
+    return pdfDocument;
+}
+
+
+/* =========================================================
+   SEARCH PDF
+   THIS IS OUR PROGRAMMATIC CTRL+F
+   ========================================================= */
+
+async function searchPDF(searchText) {
+
+    const pdf =
+        await loadManual();
+
+    const wanted =
+        normalizeText(searchText);
+
+    const matches = [];
+
+    for (
+        let pageNumber = 1;
+        pageNumber <= pdf.numPages;
+        pageNumber++
+    ) {
+
+        const page =
+            await pdf.getPage(
+                pageNumber
+            );
+
+        const textContent =
+            await page.getTextContent();
+
+        const items =
+            textContent.items || [];
+
+        for (
+            let i = 0;
+            i < items.length;
+            i++
+        ) {
+
+            const item =
+                items[i];
+
+            if (!item.str) continue;
+
+            const current =
+                normalizeText(
+                    item.str
+                );
+
+            /* Exact match inside a PDF text item */
+
+            if (
+                current === wanted ||
+                current.includes(wanted)
+            ) {
+
+                matches.push({
+                    page: pageNumber,
+                    item: item,
+                    text: item.str,
+                    index: i
+                });
+
+            }
+
+            /*
+             * Some PDF text is split into several
+             * separate text objects.
+             *
+             * Example:
+             * "Dear" + "Sir"
+             */
+
+            let combined = current;
+
+            let end = i;
+
+            while (
+                end + 1 < items.length &&
+                combined.length < wanted.length + 30
+            ) {
+
+                const next =
+                    normalizeText(
+                        items[end + 1].str || ""
+                    );
+
+                if (!next) {
+                    end++;
+                    continue;
+                }
+
+                combined +=
+                    " " + next;
+
+                end++;
+
+                if (
+                    combined.includes(
+                        wanted
+                    )
+                ) {
+
+                    matches.push({
+                        page: pageNumber,
+                        item: item,
+                        item2: items[end],
+                        text: combined,
+                        index: i
+                    });
+
+                    break;
+                }
+            }
+        }
+    }
+
+    return matches;
+}
+
+
+/* =========================================================
+   RENDER PDF MATCH
+   ========================================================= */
+
+async function renderPDFMatch(
+    container,
+    match
+) {
+
+    const pdf =
+        pdfDocument;
+
+    const page =
+        await pdf.getPage(
+            match.page
+        );
+
+    const viewport =
+        page.getViewport({
+            scale: 2
+        });
+
+    /*
+     * PDF text item coordinates.
+     */
+
+    const transform =
+        viewport.transform;
+
+    const item =
+        match.item;
+
+    const tx =
+        item.transform;
+
+    /*
+     * Convert PDF coordinates
+     * into canvas coordinates.
+     */
+
+    const pdfX =
+        tx[4];
+
+    const pdfY =
+        tx[5];
+
+    const point =
+        viewport.convertToViewportPoint(
+            pdfX,
+            pdfY
+        );
+
+    let x =
+        point[0];
+
+    let y =
+        point[1];
+
+    /*
+     * The important trick:
+     *
+     * We don't blindly crop one tiny box.
+     *
+     * We make a larger region around
+     * the exact Ctrl+F match so the
+     * actual shorthand printed around
+     * the entry remains visible.
+     */
+
+    const cropWidth = 330;
+    const cropHeight = 180;
+
+    let cropX =
+        x - 100;
+
+    let cropY =
+        y - 80;
+
+    cropX =
+        Math.max(
+            0,
+            Math.min(
+                cropX,
+                viewport.width -
+                cropWidth
+            )
+        );
+
+    cropY =
+        Math.max(
+            0,
+            Math.min(
+                cropY,
+                viewport.height -
+                cropHeight
+            )
+        );
+
+    const canvas =
+        document.createElement(
+            "canvas"
+        );
+
+    canvas.width =
+        cropWidth;
+
+    canvas.height =
+        cropHeight;
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+    /*
+     * Render the complete PDF page
+     * temporarily.
+     */
+
+    const fullCanvas =
+        document.createElement(
+            "canvas"
+        );
+
+    fullCanvas.width =
+        Math.ceil(
+            viewport.width
+        );
+
+    fullCanvas.height =
+        Math.ceil(
+            viewport.height
+        );
+
+    await page.render({
+        canvasContext:
+            fullCanvas.getContext("2d"),
+        viewport:
+            viewport
+    }).promise;
+
+    /*
+     * Extract the region around
+     * the exact search result.
+     */
+
+    ctx.drawImage(
+        fullCanvas,
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        cropWidth,
+        cropHeight
+    );
+
+    container.innerHTML = "";
+
+    container.appendChild(
+        canvas
+    );
+}
+
+
+/* =========================================================
+   PDF RESULT CARD
+   ========================================================= */
+
+async function createPDFCard(
+    phrase
+) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "card pdf-card";
+
+    const title =
+        document.createElement("div");
+
+    title.className =
+        "pdf-title";
+
+    title.textContent =
+        phrase;
+
+    card.appendChild(title);
+
+    const info =
+        document.createElement("div");
+
+    info.className =
+        "pdf-info";
+
+    info.textContent =
+        "Searching the 1929 Gregg Shorthand Manual — programmatic Ctrl+F";
+
+    card.appendChild(info);
+
+    const crop =
+        document.createElement("div");
+
+    crop.className =
+        "pdf-crop";
+
+    crop.innerHTML =
+        '<div class="pdf-failed">' +
+        'Searching PDF...' +
+        '</div>';
+
+    card.appendChild(crop);
+
+    try {
+
+        const matches =
+            await searchPDF(
+                phrase
+            );
+
+        if (
+            matches.length === 0
+        ) {
+
+            crop.innerHTML =
+                '<div class="pdf-failed">' +
+                'No exact PDF text match found.' +
+                '</div>';
+
+            return card;
+        }
+
+        const match =
+            matches[0];
+
+        info.textContent =
+            "Found in PDF page " +
+            match.page +
+            " — searching by PDF text coordinates";
+
+        await renderPDFMatch(
+            crop,
+            match
+        );
+
+    } catch(error) {
+
+        console.error(error);
+
+        crop.innerHTML =
+            '<div class="pdf-failed">' +
+            'PDF search failed: ' +
+            error.message +
+            '</div>';
+    }
+
+    return card;
+}
+
+
+/* =========================================================
    TRANSLATE
-   ============================================================ */
+   ========================================================= */
 
 async function translate() {
 
     const input =
         document
-            .getElementById("inputText")
+            .getElementById(
+                "inputText"
+            )
             .value
             .trim();
 
     const series =
         document
-            .getElementById("series")
+            .getElementById(
+                "series"
+            )
             .value;
 
     const results =
         document
-            .getElementById("results");
+            .getElementById(
+                "results"
+            );
 
     const status =
         document
-            .getElementById("status");
+            .getElementById(
+                "status"
+            );
 
     results.innerHTML = "";
 
@@ -842,45 +903,88 @@ async function translate() {
 
     try {
 
-        status.textContent =
-            "Loading " +
-            series +
-            " dictionary...";
+        /*
+         * Load Greggdict first.
+         */
 
-        const dictionary =
-            await loadDictionary(series);
-
-        const words =
-            tokenize(input);
-
-        const phrases =
-            findPhrases(words);
-
-        status.textContent =
-            "Ready — " +
-            series +
-            " Greggdict";
+        await loadDictionary(
+            series
+        );
 
         /*
-         * Show phrase recognition first.
+         * Load PDF in parallel.
+         */
+
+        await loadManual();
+
+        status.textContent =
+            "Searching Greggdict + PDF...";
+
+        /*
+         * Clean words.
+         */
+
+        const words =
+            input
+                .toLowerCase()
+                .split(/\s+/)
+                .map(
+                    w =>
+                        w.replace(
+                            /[^a-z']/g,
+                            ""
+                        )
+                )
+                .filter(Boolean);
+
+        /*
+         * Show PDF searches for phrases.
+         *
+         * Start with phrases of 2+ words.
          */
 
         for (
-            const phrase of phrases
+            let i = 0;
+            i < words.length - 1;
+            i++
         ) {
 
-            results.appendChild(
-                createPhraseCard(
-                    phrase,
-                    dictionary,
-                    series
-                )
-            );
+            const phrase =
+                words[i] +
+                " " +
+                words[i + 1];
 
+            /*
+             * Only try the PDF when
+             * it looks like an actual phrase.
+             */
+
+            const card =
+                await createPDFCard(
+                    phrase
+                );
+
+            /*
+             * Only add the card if
+             * PDF actually found it.
+             */
+
+            const failed =
+                card.querySelector(
+                    ".pdf-failed"
+                );
+
+            if (!failed) {
+
+                results.appendChild(
+                    card
+                );
+
+            }
         }
 
         /*
-         * Show all individual words.
+         * Then Greggdict words.
          */
 
         for (
@@ -890,38 +994,34 @@ async function translate() {
             results.appendChild(
                 createWordCard(
                     word,
-                    dictionary,
                     series
                 )
             );
 
         }
 
-    } catch (error) {
+        status.textContent =
+            "Ready — Greggdict + PDF search";
+
+    } catch(error) {
 
         console.error(error);
 
         status.textContent =
-            "Error loading Gregg dictionary.";
-
-        results.innerHTML =
-            '<div class="card">' +
-            '<div class="missing">' +
-            error.message +
-            '</div>' +
-            '</div>';
-
+            "Error: " +
+            error.message;
     }
-
 }
 
 
-/* ============================================================
+/* =========================================================
    BUTTONS
-   ============================================================ */
+   ========================================================= */
 
 document
-    .getElementById("translateBtn")
+    .getElementById(
+        "translateBtn"
+    )
     .addEventListener(
         "click",
         translate
@@ -929,21 +1029,29 @@ document
 
 
 document
-    .getElementById("clearBtn")
+    .getElementById(
+        "clearBtn"
+    )
     .addEventListener(
         "click",
-        function () {
+        () => {
 
             document
-                .getElementById("inputText")
+                .getElementById(
+                    "inputText"
+                )
                 .value = "";
 
             document
-                .getElementById("results")
+                .getElementById(
+                    "results"
+                )
                 .innerHTML = "";
 
             document
-                .getElementById("status")
+                .getElementById(
+                    "status"
+                )
                 .textContent =
                     "Ready.";
 
@@ -951,48 +1059,39 @@ document
     );
 
 
-/* Ctrl + Enter */
+/* =========================================================
+   START
+   ========================================================= */
 
-document
-    .getElementById("inputText")
-    .addEventListener(
-        "keydown",
-        function (event) {
+(async function() {
 
-            if (
-                event.ctrlKey &&
-                event.key === "Enter"
-            ) {
+    try {
 
-                translate();
-
-            }
-
-        }
-    );
-
-
-/* Initial load */
-
-loadDictionary("Anniversary")
-    .then(() => {
+        await loadDictionary(
+            "Anniversary"
+        );
 
         document
-            .getElementById("status")
+            .getElementById(
+                "status"
+            )
             .textContent =
-                "Ready — Greggdict loaded.";
+                "Ready.";
 
-    })
-    .catch(error => {
+    } catch(error) {
 
         console.error(error);
 
         document
-            .getElementById("status")
+            .getElementById(
+                "status"
+            )
             .textContent =
-                "Could not load Greggdict.";
+                "Ready — PDF/Greggdict will load when used.";
 
-    });
+    }
+
+})();
 
 </script>
 
